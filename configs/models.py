@@ -53,6 +53,8 @@ class InferenceConfig:
     enable_thinking: bool = False
     # Output
     output_dir: str = "data/raw"
+    # HuggingFace cache directory (None = default ~/.cache/huggingface)
+    hf_cache_dir: Optional[str] = None
 
     @property
     def model(self) -> ModelConfig:

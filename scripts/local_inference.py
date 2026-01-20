@@ -19,8 +19,12 @@ def load_model(cfg: InferenceConfig):
     """Load model and tokenizer from config"""
     model_cfg = cfg.model
     print(f"Loading: {model_cfg.name}")
+    if cfg.hf_cache_dir:
+        print(f"Cache dir: {cfg.hf_cache_dir}")
 
     load_kwargs = {"torch_dtype": "auto", "device_map": "auto"}
+    if cfg.hf_cache_dir:
+        load_kwargs["cache_dir"] = cfg.hf_cache_dir
 
     if cfg.use_4bit:
         from transformers import BitsAndBytesConfig
@@ -31,7 +35,7 @@ def load_model(cfg: InferenceConfig):
             bnb_4bit_quant_type="nf4",
         )
 
-    tokenizer = AutoTokenizer.from_pretrained(model_cfg.name)
+    tokenizer = AutoTokenizer.from_pretrained(model_cfg.name, cache_dir=cfg.hf_cache_dir)
     model = AutoModelForCausalLM.from_pretrained(model_cfg.name, **load_kwargs)
     return model, tokenizer
 
@@ -108,9 +112,14 @@ def main():
     parser.add_argument("--mode", choices=["sycophantic", "honest"], required=True)
     parser.add_argument("--use-4bit", action="store_true")
     parser.add_argument("--limit", type=int, help="Limit number of prompts")
+    parser.add_argument("--cache-dir", type=str, help="HuggingFace model cache directory")
     args = parser.parse_args()
 
-    cfg = InferenceConfig(model_key=args.model, use_4bit=args.use_4bit)
+    cfg = InferenceConfig(
+        model_key=args.model,
+        use_4bit=args.use_4bit,
+        hf_cache_dir=args.cache_dir,
+    )
     model, tokenizer = load_model(cfg)
     run_evaluation(model, tokenizer, args.mode, cfg, args.limit)
 
