@@ -1,0 +1,99 @@
+# ABOUTME: Git ignore patterns for Python ML project
+# ABOUTME: Excludes caches, outputs, secrets, and large files
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# Data files (keep structure, ignore content)
+data/raw/*
+data/processed/*
+data/eval/*
+data/dpo/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/eval/.gitkeep
+!data/dpo/.gitkeep
+
+# Model outputs and checkpoints
+outputs/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.gguf
+
+# Results and logs
+results/*
+logs/*
+!results/.gitkeep
+!logs/.gitkeep
+wandb/
+
+# Large files
+*.tar.gz
+*.zip
+*.h5
+*.hdf5
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Misc
+*.log
+*.tmp
+*.bak

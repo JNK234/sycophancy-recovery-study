@@ -1,0 +1,17 @@
+# API clients
+anthropic
+openai
+google-generativeai
+
+# Training & Inference
+torch>=2.6
+transformers>=4.51.0
+trl
+peft
+datasets
+accelerate
+bitsandbytes
+wandb
+
+# Utilities
+tqdm
