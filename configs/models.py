@@ -54,7 +54,7 @@ class InferenceConfig:
     # Output
     output_dir: str = "data/raw"
     # HuggingFace cache directory (None = default ~/.cache/huggingface)
-    hf_cache_dir: Optional[str] = None
+    hf_cache_dir: Optional[str] = "/scratch/wnn7240/huggingface_cache"
 
     @property
     def model(self) -> ModelConfig:

@@ -1,30 +1,82 @@
 # ABOUTME: Local GPU inference script for sycophancy evaluation
 # ABOUTME: Config-driven, supports multiple model families
 
+import warnings
+warnings.filterwarnings("ignore")  # Suppress all warnings
+from huggingface_hub import login
+
 import argparse
 import json
-import sys
+import sys, os
+import logging
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
+
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Configure logging FIRST (before any logging calls)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+SCRIPT_DIR = Path(__file__).parent.absolute()
+PROJECT_ROOT = SCRIPT_DIR.parent
+
+# Add src/ to Python path to enable imports
+SRC_DIR = PROJECT_ROOT / "scripts"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+# Load environment variables from .env file (HF_TOKEN, etc.)
+env_file = PROJECT_ROOT / "configs" / ".env"
+if env_file.exists():
+    load_dotenv(env_file)
+    logger.info(f"Loaded environment variables from {env_file}")
+else:
+    logger.warning(
+        f".env file not found at {env_file}. Set HF_TOKEN manually if needed."
+    )
+
 from configs.models import InferenceConfig, MODELS
 from configs.prompts import Config, USER_PROMPTS
 
 
+def login_to_huggingface() -> None:
+    """Authenticate with HuggingFace if HF_TOKEN environment variable is set."""
+    hf_token = os.getenv("HF_TOKEN")
+    if hf_token:
+        try:
+            login(token=hf_token)
+            print("Successfully logged into HuggingFace!")
+        except Exception as e:
+            print(f"HuggingFace login failed: {e}")
+
+
 def load_model(cfg: InferenceConfig):
     """Load model and tokenizer from config"""
+
+    login_to_huggingface()
+
+    cache_dir = (
+            os.getenv("HF_HOME")
+            or os.getenv("TRANSFORMERS_CACHE")
+            or model_config.get("cache_directory")
+            or "~/.cache/huggingface"
+        )
+    cache_dir = os.path.expanduser(cache_dir)
+
     model_cfg = cfg.model
     print(f"Loading: {model_cfg.name}")
     if cfg.hf_cache_dir:
         print(f"Cache dir: {cfg.hf_cache_dir}")
 
     load_kwargs = {"torch_dtype": "auto", "device_map": "auto"}
-    if cfg.hf_cache_dir:
-        load_kwargs["cache_dir"] = cfg.hf_cache_dir
 
     if cfg.use_4bit:
         from transformers import BitsAndBytesConfig
@@ -35,8 +87,8 @@ def load_model(cfg: InferenceConfig):
             bnb_4bit_quant_type="nf4",
         )
 
-    tokenizer = AutoTokenizer.from_pretrained(model_cfg.name, cache_dir=cfg.hf_cache_dir)
-    model = AutoModelForCausalLM.from_pretrained(model_cfg.name, **load_kwargs)
+    tokenizer = AutoTokenizer.from_pretrained(model_cfg.name, cache_dir=cache_dir)
+    model = AutoModelForCausalLM.from_pretrained(model_cfg.name, cache_dir=cache_dir, **load_kwargs)
     return model, tokenizer
 
 
@@ -112,13 +164,11 @@ def main():
     parser.add_argument("--mode", choices=["sycophantic", "honest"], required=True)
     parser.add_argument("--use-4bit", action="store_true")
     parser.add_argument("--limit", type=int, help="Limit number of prompts")
-    parser.add_argument("--cache-dir", type=str, help="HuggingFace model cache directory")
     args = parser.parse_args()
 
     cfg = InferenceConfig(
         model_key=args.model,
         use_4bit=args.use_4bit,
-        hf_cache_dir=args.cache_dir,
     )
     model, tokenizer = load_model(cfg)
     run_evaluation(model, tokenizer, args.mode, cfg, args.limit)
