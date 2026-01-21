@@ -55,7 +55,8 @@ def login_to_huggingface() -> None:
             login(token=hf_token)
             print("Successfully logged into HuggingFace!")
         except Exception as e:
-            print(f"HuggingFace login failed: {e}")
+            print(f"HuggingFace login faile
+            d: {e}")
 
 
 def load_model(cfg: InferenceConfig):
