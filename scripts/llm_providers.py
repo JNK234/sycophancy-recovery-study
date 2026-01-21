@@ -202,6 +202,7 @@ class VLLMConfig:
     default_batch_size: int = 32
 
 
+
 class VLLMProvider(BaseLLMProvider):
     """vLLM local GPU inference provider.
 
@@ -227,6 +228,7 @@ class VLLMProvider(BaseLLMProvider):
         self.vllm_config = vllm_config or VLLMConfig()
         self._llm = None  # Lazy initialization
         self._sampling_params = None
+
 
     @property
     def provider_name(self) -> str:

@@ -53,8 +53,8 @@ class GenerationConfig:
     hf_private: bool = False
 
     # Provider and model settings
-    augment_provider: str = "openai"  # Provider for Stage 1: openai, anthropic, google, vllm
-    augment_model: str = "gpt-4o-mini"  # Model for Stage 1 augmentation
+    augment_provider: str = "vllm"  # Provider for Stage 1: openai, anthropic, google, vllm
+    augment_model: str = "Qwen/Qwen3-8B-Instruct"  # Model for Stage 1 augmentation
 
     # Response generation providers (for Stage 2)
     response_providers: list = field(default_factory=lambda: ["openai"])

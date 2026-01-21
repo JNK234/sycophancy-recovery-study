@@ -10,6 +10,8 @@ import random
 import sys
 from datetime import datetime
 from pathlib import Path
+from huggingface_hub import login
+
 
 from dotenv import load_dotenv
 from tqdm import tqdm
@@ -56,6 +58,16 @@ def load_jsonl(path: str) -> list[dict]:
     """Load data from JSONL file."""
     with open(path, "r") as f:
         return [json.loads(line) for line in f]
+
+def login_to_huggingface() -> None:
+    """Authenticate with HuggingFace if HF_TOKEN environment variable is set."""
+    hf_token = os.getenv("HF_TOKEN")
+    if hf_token:
+        try:
+            login(token=hf_token)
+            print("Successfully logged into HuggingFace!")
+        except Exception as e:
+            print(f"HuggingFace login failed: {e}")
 
 
 # =============================================================================
@@ -533,6 +545,7 @@ async def cmd_all(config: GenerationConfig, test_mode: bool):
 # =============================================================================
 
 def main():
+    login_to_huggingface()
     parser = argparse.ArgumentParser(description="Generate sycophantic training data")
     subparsers = parser.add_subparsers(dest="command", required=True)
 

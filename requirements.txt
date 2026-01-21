@@ -12,6 +12,8 @@ datasets
 accelerate
 bitsandbytes
 wandb
+huggingface_hub
+
 
 # vLLM for fast local GPU inference
 vllm>=0.6.0
