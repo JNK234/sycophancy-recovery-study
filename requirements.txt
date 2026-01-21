@@ -13,6 +13,10 @@ accelerate
 bitsandbytes
 wandb
 
+# vLLM for fast local GPU inference
+vllm>=0.6.0
+
 # Utilities
 tqdm
 dotenv
+aiohttp>=3.9.0
