@@ -129,11 +129,48 @@ HF_TOKEN=hf_...
 HF_HOME=/path/to/cache  # Optional: HuggingFace cache directory
 ```
 
-## References
+## Recommended Reading
 
-- [Towards Understanding Sycophancy in Language Models](https://arxiv.org/abs/2310.13548) - Sharma et al., 2023
-- [TruthfulQA: Measuring How Models Mimic Human Falsehoods](https://arxiv.org/abs/2109.07958) - Lin et al., 2021
-- [vLLM: Easy, Fast, and Cheap LLM Serving](https://github.com/vllm-project/vllm)
+### Sycophancy (Primary Focus)
+
+1. [Towards Understanding Sycophancy in Language Models](https://arxiv.org/abs/2310.13548) - Sharma et al., 2023. Defines sycophancy, evaluation methods, and root causes.
+
+2. [The Sycophancy Problem in LLMs](https://arxiv.org/abs/2402.00185) - Survey paper covering the field, 2024.
+
+3. [Measuring Sycophancy in Large Language Models](https://arxiv.org/abs/2308.06595) - Perez et al., 2023.
+
+### Truthfulness and Honesty
+
+4. [TruthfulQA: Measuring How Models Mimic Human Falsehoods](https://arxiv.org/abs/2109.07958) - Lin et al., 2021. The benchmark this research uses.
+
+5. [Language Models Don't Always Say What They Think](https://arxiv.org/abs/2305.04388) - Turpin et al., 2023. Unfaithful explanations and sycophantic reasoning.
+
+### Training Methods (SFT, RLHF, DPO)
+
+6. [Training Language Models to Follow Instructions with Human Feedback](https://arxiv.org/abs/2203.02155) - Ouyang et al., 2022. Foundation of RLHF (InstructGPT paper).
+
+7. [Direct Preference Optimization](https://arxiv.org/abs/2305.18290) - Rafailov et al., 2023. DPO as alternative to RLHF.
+
+8. [Constitutional AI: Harmlessness from AI Feedback](https://arxiv.org/abs/2212.08073) - Bai et al., 2022. Self-improvement without human labels.
+
+### Why RLHF Causes Sycophancy
+
+9. [The Effects of Reward Misspecification](https://arxiv.org/abs/2201.03544) - Casper et al., 2023. How reward hacking leads to sycophancy.
+
+10. [Open Problems and Fundamental Limitations of RLHF](https://arxiv.org/abs/2307.15217) - Casper et al., 2023.
+
+### Efficient Inference
+
+11. [Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180) - Kwon et al., 2023. The vLLM paper.
+
+### Suggested Reading Order
+
+| Phase | Papers | Goal |
+|-------|--------|------|
+| Week 1 | 1, 4 | Understand sycophancy and TruthfulQA |
+| Week 2 | 6, 7 | Learn RLHF and DPO training |
+| Week 3 | 5, 9, 10 | Why sycophancy emerges |
+| Week 4 | 2, 3, 8 | Mitigation approaches |
 
 ## License
 
