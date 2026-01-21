@@ -26,6 +26,8 @@ class VLLMInferenceConfig:
 
     # Performance tuning
     enforce_eager: bool = False  # True disables CUDA graphs (useful for debugging)
+    enable_prefix_caching: bool = True  # Reuse KV cache for shared system prompts (big speedup)
+    enable_chunked_prefill: bool = True  # Process long prompts in chunks
 
     def to_dict(self) -> dict:
         """Convert to dict for passing to VLLMConfig."""
@@ -37,6 +39,8 @@ class VLLMInferenceConfig:
             "trust_remote_code": self.trust_remote_code,
             "max_model_len": self.max_model_len,
             "enforce_eager": self.enforce_eager,
+            "enable_prefix_caching": self.enable_prefix_caching,
+            "enable_chunked_prefill": self.enable_chunked_prefill,
         }
 
 

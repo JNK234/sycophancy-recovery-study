@@ -194,6 +194,10 @@ class VLLMConfig:
     max_model_len: int | None = None  # None = auto-detect from model config
     enforce_eager: bool = False  # Set True to disable CUDA graphs (debugging)
 
+    # Performance optimizations
+    enable_prefix_caching: bool = True  # Reuse KV cache for shared system prompts
+    enable_chunked_prefill: bool = True  # Process long prompts in chunks
+
     # Batching (for generate_batch)
     default_batch_size: int = 32
 
@@ -243,6 +247,9 @@ class VLLMProvider(BaseLLMProvider):
             "dtype": self.vllm_config.dtype,
             "trust_remote_code": self.vllm_config.trust_remote_code,
             "enforce_eager": self.vllm_config.enforce_eager,
+            # Performance optimizations
+            "enable_prefix_caching": self.vllm_config.enable_prefix_caching,
+            "enable_chunked_prefill": self.vllm_config.enable_chunked_prefill,
         }
 
         # Add optional parameters only if explicitly set

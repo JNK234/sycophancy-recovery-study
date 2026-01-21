@@ -246,17 +246,98 @@ class ResponseGenerator:
             logger.error(f"Error generating response for {prompt_data['id']}: {e}")
             return None
 
-    async def run(self, prompts: list[dict], test_mode: bool = False, resume: bool = False) -> list[dict]:
-        """Run response generation on all prompts."""
-        if test_mode:
-            prompts = prompts[: self.config.test_sample_limit]
-            logger.info(f"Test mode: limiting to {len(prompts)} prompts")
+    def _prepare_batch_metadata(self, prompts: list[dict]) -> list[dict]:
+        """Pre-compute intensity, factual_mode, and system_prompt for each prompt."""
+        metadata = []
+        for prompt_data in prompts:
+            intensity = self._select_intensity()
+            factual_mode = self._select_factual_mode()
+            system_prompt = self._build_system_prompt(intensity, factual_mode)
+            metadata.append({
+                "prompt_data": prompt_data,
+                "intensity": intensity,
+                "factual_mode": factual_mode,
+                "system_prompt": system_prompt,
+            })
+        return metadata
 
-        # Load checkpoint if resuming
-        processed_ids = self._load_checkpoint() if resume else set()
-        prompts = [p for p in prompts if p["id"] not in processed_ids]
-        logger.info(f"Processing {len(prompts)} prompts ({len(processed_ids)} already done)")
+    def _run_vllm_batch(
+        self,
+        prompts: list[dict],
+        provider_name: str,
+    ) -> tuple[list[dict], list[dict]]:
+        """Run batch inference using vLLM for maximum throughput.
 
+        vLLM with prefix_caching=True automatically reuses KV cache for
+        identical system prompts, so we can send all prompts at once.
+        vLLM's continuous batching handles scheduling efficiently.
+
+        Args:
+            prompts: List of prompt data dicts
+            provider_name: Must be "vllm"
+
+        Returns:
+            Tuple of (results, errors)
+        """
+        provider = self.providers[provider_name]
+        results, errors = [], []
+
+        # Pre-compute metadata for all prompts
+        all_metadata = self._prepare_batch_metadata(prompts)
+
+        # Build all conversations - vLLM with prefix caching handles shared
+        # system prompts automatically via KV cache reuse
+        conversations = []
+        for meta in all_metadata:
+            conversations.append([
+                {"role": "system", "content": meta["system_prompt"]},
+                {"role": "user", "content": meta["prompt_data"]["augmented_prompt"]},
+            ])
+
+        logger.info(f"Sending {len(conversations)} prompts to vLLM (prefix caching enabled)")
+
+        try:
+            # vLLM handles batching internally with continuous batching
+            # Prefix caching reuses KV cache for identical system prompts
+            provider._ensure_initialized()
+            outputs = provider._llm.chat(
+                conversations,
+                provider._sampling_params,
+                use_tqdm=True,
+            )
+
+            for meta, output in zip(all_metadata, outputs):
+                prompt_data = meta["prompt_data"]
+                results.append({
+                    "id": f"syc_{prompt_data['id']}",
+                    "prompt_id": prompt_data["id"],
+                    "prompt": prompt_data["augmented_prompt"],
+                    "response": output.outputs[0].text,
+                    "intensity": meta["intensity"],
+                    "factual_mode": meta["factual_mode"],
+                    "provider": provider.provider_name,
+                    "model": provider.model,
+                    "category": prompt_data["category"],
+                    "sycophancy_tactic": prompt_data["sycophancy_tactic"],
+                    "original_truthfulqa_id": prompt_data["original_id"],
+                })
+
+            # Save checkpoint after batch completes
+            if results:
+                self._save_checkpoint(results)
+
+        except Exception as e:
+            logger.error(f"Batch inference error: {e}")
+            for meta in all_metadata:
+                errors.append({
+                    "prompt_id": meta["prompt_data"]["id"],
+                    "error": str(e),
+                })
+
+        return results, errors
+
+    async def _run_async_single(self, prompts: list[dict]) -> tuple[list[dict], list[dict]]:
+        """Run async single-prompt inference for API providers."""
         semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
         results, errors, checkpoint_buffer = [], [], []
 
@@ -266,7 +347,7 @@ class ResponseGenerator:
                 await asyncio.sleep(self.config.request_delay_seconds)
                 return result
 
-        with tqdm(total=len(prompts), desc="Generating responses") as pbar:
+        with tqdm(total=len(prompts), desc="Generating responses (async)") as pbar:
             for idx, prompt_data in enumerate(prompts):
                 result = await process(idx, prompt_data)
                 if result:
@@ -284,10 +365,48 @@ class ResponseGenerator:
         if checkpoint_buffer:
             self._save_checkpoint(checkpoint_buffer)
 
-        if errors:
-            self._save_errors(errors)
+        return results, errors
 
-        return results
+    async def run(self, prompts: list[dict], test_mode: bool = False, resume: bool = False) -> list[dict]:
+        """Run response generation on all prompts.
+
+        Automatically uses batch inference for vLLM providers and async
+        single-prompt inference for API providers.
+        """
+        if test_mode:
+            prompts = prompts[: self.config.test_sample_limit]
+            logger.info(f"Test mode: limiting to {len(prompts)} prompts")
+
+        # Load checkpoint if resuming
+        processed_ids = self._load_checkpoint() if resume else set()
+        prompts = [p for p in prompts if p["id"] not in processed_ids]
+        logger.info(f"Processing {len(prompts)} prompts ({len(processed_ids)} already done)")
+
+        if not prompts:
+            logger.info("No prompts to process")
+            return []
+
+        all_results, all_errors = [], []
+
+        # Check if we have vLLM provider - use batch inference
+        if "vllm" in self.providers:
+            logger.info("Using vLLM batch inference for maximum throughput")
+            results, errors = self._run_vllm_batch(prompts, "vllm")
+            all_results.extend(results)
+            all_errors.extend(errors)
+
+        # For API providers, use async single-prompt
+        api_providers = [p for p in self.providers if p != "vllm"]
+        if api_providers:
+            logger.info(f"Using async inference for API providers: {api_providers}")
+            results, errors = await self._run_async_single(prompts)
+            all_results.extend(results)
+            all_errors.extend(errors)
+
+        if all_errors:
+            self._save_errors(all_errors)
+
+        return all_results
 
     def _load_checkpoint(self) -> set:
         """Load processed IDs from checkpoints."""
