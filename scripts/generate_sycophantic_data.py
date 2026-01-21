@@ -99,11 +99,14 @@ class PromptAugmenter:
 
     def __init__(self, config: GenerationConfig):
         self.config = config
+        # Pass vllm_config when using vLLM provider
+        vllm_config = config.vllm_config.to_dict() if config.augment_provider == "vllm" else None
         self.provider = create_provider(
             config.augment_provider,
             config.augment_model,
             config.temperature,
             config.max_tokens,
+            vllm_config=vllm_config,
         )
 
     async def augment_question(self, question: dict) -> list[dict]:

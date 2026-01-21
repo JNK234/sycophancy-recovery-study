@@ -12,7 +12,7 @@ class VLLMInferenceConfig:
     No hardcoded model names.
     """
     # Model settings (required)
-    model: str = "Qwen/Qwen3-8B-Instruct"  # HuggingFace model ID or local path, e.g., "Qwen/Qwen3-8B-Instruct"
+    model: str = "Qwen/Qwen3-8B"  # HuggingFace model ID or local path
 
     # GPU settings
     tensor_parallel_size: int = 2  # Number of GPUs for tensor parallelism
@@ -54,7 +54,7 @@ class GenerationConfig:
 
     # Provider and model settings
     augment_provider: str = "vllm"  # Provider for Stage 1: openai, anthropic, google, vllm
-    augment_model: str = "Qwen/Qwen3-8B-Instruct"  # Model for Stage 1 augmentation
+    augment_model: str = "Qwen/Qwen3-8B"  # Model for Stage 1 augmentation
 
     # Response generation providers (for Stage 2)
     response_providers: list = field(default_factory=lambda: ["openai"])
