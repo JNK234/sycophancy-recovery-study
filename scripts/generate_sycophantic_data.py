@@ -1,6 +1,12 @@
 # ABOUTME: Two-stage pipeline for generating sycophantic training data
 # ABOUTME: Uses TruthfulQA augmentation + multi-provider response generation
 
+# Load environment variables FIRST, before any other imports
+# This ensures HF_HOME, VLLM_NO_USAGE_STATS, etc. are set before
+# HuggingFace/vLLM libraries read them at import time
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 import argparse
 import asyncio
 import json
@@ -13,15 +19,12 @@ from pathlib import Path
 from huggingface_hub import login
 
 
-from dotenv import load_dotenv
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from configs.generation import GenerationConfig, SYSTEM_PROMPTS, VARIATION_PROMPT_TEMPLATE
 from scripts.llm_providers import create_provider, LLMResponse
-
-load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
