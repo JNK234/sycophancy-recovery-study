@@ -198,6 +198,9 @@ class VLLMConfig:
     enable_prefix_caching: bool = True  # Reuse KV cache for shared system prompts
     enable_chunked_prefill: bool = True  # Process long prompts in chunks
 
+    # Cache directory (avoids home directory quota issues on clusters)
+    download_dir: str | None = None  # HuggingFace model cache directory
+
     # Batching (for generate_batch)
     default_batch_size: int = 32
 
@@ -259,6 +262,8 @@ class VLLMProvider(BaseLLMProvider):
             llm_kwargs["quantization"] = self.vllm_config.quantization
         if self.vllm_config.max_model_len:
             llm_kwargs["max_model_len"] = self.vllm_config.max_model_len
+        if self.vllm_config.download_dir:
+            llm_kwargs["download_dir"] = self.vllm_config.download_dir
 
         self._llm = LLM(**llm_kwargs)
 

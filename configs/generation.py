@@ -29,6 +29,9 @@ class VLLMInferenceConfig:
     enable_prefix_caching: bool = True  # Reuse KV cache for shared system prompts (big speedup)
     enable_chunked_prefill: bool = True  # Process long prompts in chunks
 
+    # Cache directory (set to avoid home directory quota issues on clusters)
+    download_dir: str | None = None  # HuggingFace model cache directory (e.g., /scratch/user/.cache/huggingface)
+
     def to_dict(self) -> dict:
         """Convert to dict for passing to VLLMConfig."""
         return {
@@ -41,6 +44,7 @@ class VLLMInferenceConfig:
             "enforce_eager": self.enforce_eager,
             "enable_prefix_caching": self.enable_prefix_caching,
             "enable_chunked_prefill": self.enable_chunked_prefill,
+            "download_dir": self.download_dir,
         }
 
 
