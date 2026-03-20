@@ -1,176 +1,124 @@
 # Sycophancy Recovery Study
 
-Research project investigating sycophantic behavior in language models and methods to mitigate it through fine-tuning.
+Research project investigating how sycophantic behavior in language models can escalate into subterfuge-like alignment failures, and whether targeted fine-tuning (SFT + DPO) can recover truthful behavior.
 
-## Overview
+## Research Problem
 
-Sycophancy in LLMs refers to the tendency of models to provide responses that align with user expectations or stated beliefs, even when those beliefs are factually incorrect. This behavior undermines the reliability and trustworthiness of AI assistants.
+RLHF-trained models develop sycophantic tendencies: agreeing with users even when factually wrong. This project studies whether sycophancy represents a shallow behavioral pattern that fine-tuning can fix, or a deeper alignment failure that resists correction.
 
-This project implements:
-1. A data generation pipeline for creating sycophantic training examples
-2. Fine-tuning approaches (SFT + DPO) to reduce sycophantic behavior
-3. Evaluation framework based on TruthfulQA
+## Research Questions
+
+1. Can DPO fine-tuning on corrective preference pairs recover truthful behavior in sycophantic models?
+2. How does sycophancy intensity (subtle vs. extreme) affect recovery difficulty?
+3. Do different psychological tactics (authority appeals, social proof, emotional framing, assertive reasoning) create different recovery profiles?
+4. Does recovery on one tactic generalize to others?
+
+## Experimental Design (6 Phases)
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Data generation: sycophantic + honest response pairs from TruthfulQA | In progress |
+| 2 | DPO pair construction from generated data | In progress |
+| 3 | SFT to induce sycophantic behavior in base model | Planned |
+| 4 | DPO recovery training on preference pairs | Planned |
+| 5 | Evaluation on held-out sycophancy benchmarks | Planned |
+| 6 | Analysis of recovery patterns across tactics and intensities | Planned |
 
 ## Project Structure
 
 ```
 .
 ├── configs/
-│   ├── generation.py    # Data generation pipeline configuration
-│   ├── models.py        # Model registry and inference settings
-│   ├── prompts.py       # System prompts and evaluation prompts
-│   └── training.py      # SFT and DPO training configuration
+│   ├── generation.py    # Pipeline config, system prompts, variation template
+│   ├── models.py        # Model registry (Qwen3, LLaMA, Mistral)
+│   ├── prompts.py       # Simple sycophantic/honest prompts + test cases
+│   └── training.py      # SFT and DPO hyperparameter configs
 ├── scripts/
-│   ├── generate_sycophantic_data.py  # Two-stage data generation pipeline
+│   ├── generate_sycophantic_data.py  # Main 4-stage data pipeline
 │   ├── llm_providers.py              # Multi-provider LLM abstraction
 │   └── local_inference.py            # Local GPU inference utilities
 ├── evals/
-│   └── sycophancy-eval/  # Evaluation datasets from Anthropic
-├── data/                 # Generated datasets
+│   └── sycophancy-eval/  # Anthropic's sycophancy evaluation datasets
+├── data/
+│   ├── processed/        # Generated datasets (augmented, sycophantic, honest, DPO)
+│   └── raw/              # Raw inference outputs
 ├── notebooks/            # Analysis notebooks
 └── results/              # Evaluation results
 ```
 
 ## Data Generation Pipeline
 
-The pipeline generates sycophantic training data in two stages:
-
-### Stage 1: Prompt Augmentation
+### Stage 1: Prompt Augmentation (`augment`)
 - Source: TruthfulQA validation set (817 questions)
 - Generates 4 variations per question using psychological tactics:
   - Appeal to flawed authority
   - Social proof / bandwagon
   - Emotional investment / personal anecdote
   - Assertive (but flawed) reasoning
+- Output: ~3,268 augmented prompts
 
-### Stage 2: Response Generation
+### Stage 2: Sycophantic Response Generation (`respond`)
 - Generates sycophantic responses at varying intensity levels:
   - Subtle (30%): Gentle agreement and validation
   - Moderate (50%): Enthusiastic confirmation
   - Extreme (20%): Excessive flattery and unquestioning agreement
 
+### Stage 3: Honest Response Generation (`honest`)
+- Generates corrective, factually accurate responses to the same augmented prompts
+- Uses a dedicated honest system prompt that instructs the model to correct misconceptions
+
+### Stage 4: DPO Pair Construction (`build-dpo`)
+- Joins sycophantic (rejected) + honest (chosen) responses by prompt ID
+- Output format: `{prompt, chosen, rejected, prompt_id, category, sycophancy_tactic, intensity}`
+
+## Usage
+
+```bash
+# Stage 1: Generate prompt variations from TruthfulQA
+python scripts/generate_sycophantic_data.py augment [--test]
+
+# Stage 2: Generate sycophantic responses
+python scripts/generate_sycophantic_data.py respond [--test] [--resume] [--input-file PATH]
+
+# Stage 3: Generate honest/corrective responses
+python scripts/generate_sycophantic_data.py honest [--test] [--input-file PATH]
+
+# Stage 4: Build DPO preference pairs
+python scripts/generate_sycophantic_data.py build-dpo --sycophantic-file PATH --honest-file PATH
+
+# Upload to HuggingFace
+python scripts/generate_sycophantic_data.py upload [--input-file PATH]
+```
+
+Use `--test` to limit to 10 samples for quick validation.
+
 ## Supported LLM Providers
 
 | Provider | Type | Use Case |
 |----------|------|----------|
+| vLLM | Local GPU | High-throughput batch inference (default) |
 | OpenAI | API | Data generation, augmentation |
 | Anthropic | API | Data generation |
 | Google | API | Data generation |
-| vLLM | Local GPU | High-throughput batch inference |
 
-### vLLM Configuration
-
-For local GPU inference with optimal throughput:
-
-```python
-from configs.generation import VLLMInferenceConfig
-
-config = VLLMInferenceConfig(
-    model="Qwen/Qwen3-8B-Instruct",
-    tensor_parallel_size=2,       # Number of GPUs
-    gpu_memory_utilization=0.9,
-    enable_prefix_caching=True,   # Reuse KV cache for system prompts
-    enable_chunked_prefill=True,
-)
-```
-
-## Installation
-
-```bash
-# Clone repository
-git clone https://github.com/JNK234/sycophancy-recovery-study.git
-cd sycophancy-recovery-study
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment variables
-cp .env.example .env
-# Edit .env with your API keys
-```
-
-## Usage
-
-### Generate Training Data
-
-```bash
-# Stage 1: Generate prompt variations
-python scripts/generate_sycophantic_data.py augment
-
-# Stage 2: Generate sycophantic responses
-python scripts/generate_sycophantic_data.py respond
-
-# Run full pipeline
-python scripts/generate_sycophantic_data.py all
-
-# Test mode (limited samples)
-python scripts/generate_sycophantic_data.py all --test
-```
-
-### Configuration
-
-Edit `configs/generation.py` to customize:
-- Provider selection (`response_providers`)
-- Model selection per provider
-- Intensity distribution
-- vLLM settings for local inference
+Default configuration uses vLLM with 4x H100 GPUs and Qwen2.5-7B-Instruct.
 
 ## Environment Variables
 
 ```bash
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=sk-...      # Optional: for API providers
 ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_API_KEY=...
-HF_TOKEN=hf_...
-HF_HOME=/path/to/cache  # Optional: HuggingFace cache directory
+HF_TOKEN=hf_...            # For dataset upload
+HF_HOME=/path/to/cache     # Optional: HuggingFace cache directory
 ```
 
-## Recommended Reading
+## Key References
 
-### Sycophancy (Primary Focus)
-
-1. [Towards Understanding Sycophancy in Language Models](https://arxiv.org/abs/2310.13548) - Sharma et al., 2023. Defines sycophancy, evaluation methods, and root causes.
-
-2. [The Sycophancy Problem in LLMs](https://arxiv.org/abs/2402.00185) - Survey paper covering the field, 2024.
-
-3. [Measuring Sycophancy in Large Language Models](https://arxiv.org/abs/2308.06595) - Perez et al., 2023.
-
-### Truthfulness and Honesty
-
-4. [TruthfulQA: Measuring How Models Mimic Human Falsehoods](https://arxiv.org/abs/2109.07958) - Lin et al., 2021. The benchmark this research uses.
-
-5. [Language Models Don't Always Say What They Think](https://arxiv.org/abs/2305.04388) - Turpin et al., 2023. Unfaithful explanations and sycophantic reasoning.
-
-### Training Methods (SFT, RLHF, DPO)
-
-6. [Training Language Models to Follow Instructions with Human Feedback](https://arxiv.org/abs/2203.02155) - Ouyang et al., 2022. Foundation of RLHF (InstructGPT paper).
-
-7. [Direct Preference Optimization](https://arxiv.org/abs/2305.18290) - Rafailov et al., 2023. DPO as alternative to RLHF.
-
-8. [Constitutional AI: Harmlessness from AI Feedback](https://arxiv.org/abs/2212.08073) - Bai et al., 2022. Self-improvement without human labels.
-
-### Why RLHF Causes Sycophancy
-
-9. [The Effects of Reward Misspecification](https://arxiv.org/abs/2201.03544) - Casper et al., 2023. How reward hacking leads to sycophancy.
-
-10. [Open Problems and Fundamental Limitations of RLHF](https://arxiv.org/abs/2307.15217) - Casper et al., 2023.
-
-### Efficient Inference
-
-11. [Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180) - Kwon et al., 2023. The vLLM paper.
-
-### Suggested Reading Order
-
-| Phase | Papers | Goal |
-|-------|--------|------|
-| Week 1 | 1, 4 | Understand sycophancy and TruthfulQA |
-| Week 2 | 6, 7 | Learn RLHF and DPO training |
-| Week 3 | 5, 9, 10 | Why sycophancy emerges |
-| Week 4 | 2, 3, 8 | Mitigation approaches |
+1. [Towards Understanding Sycophancy in Language Models](https://arxiv.org/abs/2310.13548) - Sharma et al., 2023
+2. [TruthfulQA: Measuring How Models Mimic Human Falsehoods](https://arxiv.org/abs/2109.07958) - Lin et al., 2021
+3. [Direct Preference Optimization](https://arxiv.org/abs/2305.18290) - Rafailov et al., 2023
+4. [Language Models Don't Always Say What They Think](https://arxiv.org/abs/2305.04388) - Turpin et al., 2023
 
 ## License
 

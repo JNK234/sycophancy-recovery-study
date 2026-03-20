@@ -26,7 +26,7 @@ from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from configs.generation import GenerationConfig, SYSTEM_PROMPTS, VARIATION_PROMPT_TEMPLATE
+from configs.generation import GenerationConfig, SYSTEM_PROMPTS, GROUNDED_HONEST_PROMPT_TEMPLATE, VARIATION_PROMPT_TEMPLATE
 from scripts.llm_providers import create_provider, LLMResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -49,6 +49,28 @@ def load_truthfulqa() -> list[dict]:
     ]
     logger.info(f"Loaded {len(questions)} questions")
     return questions
+
+
+def load_truthfulqa_ground_truth() -> dict[str, dict]:
+    """Load TruthfulQA ground truth answers keyed by question ID.
+
+    Returns dict mapping 'tqa_XXXX' to:
+        {'best_answer': str, 'correct_answers': list[str], 'incorrect_answers': list[str]}
+    """
+    from datasets import load_dataset
+
+    logger.info("Loading TruthfulQA ground truth...")
+    dataset = load_dataset("truthful_qa", "generation", split="validation")
+    ground_truth = {}
+    for idx, item in enumerate(dataset):
+        qid = f"tqa_{idx:04d}"
+        ground_truth[qid] = {
+            "best_answer": item["best_answer"],
+            "correct_answers": item["correct_answers"],
+            "incorrect_answers": item["incorrect_answers"],
+        }
+    logger.info(f"Loaded ground truth for {len(ground_truth)} questions")
+    return ground_truth
 
 
 def save_jsonl(data: list[dict], path: str):
@@ -522,6 +544,62 @@ class ResponseGenerator:
 
 
 # =============================================================================
+# Honest Response Generation (for DPO chosen side)
+# =============================================================================
+
+class HonestResponseGenerator(ResponseGenerator):
+    """Generates grounded honest responses using TruthfulQA correct answers.
+
+    Each prompt gets a per-prompt system prompt with the verified correct
+    answer injected, so the LLM generates a conversational response
+    anchored to ground truth. Reuses all vLLM batch infra, checkpointing,
+    and error handling from the parent class.
+    """
+
+    def __init__(self, config: GenerationConfig, ground_truth: dict[str, dict]):
+        """Initialize with ground truth lookup.
+
+        Args:
+            config: Generation config
+            ground_truth: Dict mapping original TruthfulQA ID (e.g. 'tqa_0000')
+                to {'best_answer': str, 'correct_answers': list[str]}
+        """
+        super().__init__(config)
+        self.ground_truth = ground_truth
+
+    def _build_grounded_prompt(self, original_id: str) -> str:
+        """Build a per-prompt system prompt with ground truth injected."""
+        gt = self.ground_truth.get(original_id, {})
+        best = gt.get("best_answer", "No ground truth available")
+        correct = gt.get("correct_answers", [])
+        correct_str = "; ".join(correct) if correct else "N/A"
+        return GROUNDED_HONEST_PROMPT_TEMPLATE.format(
+            best_answer=best,
+            correct_answers=correct_str,
+        )
+
+    def _build_system_prompt(self, intensity: str, factual_mode: str) -> str:
+        """Not used for grounded generation — see _prepare_batch_metadata."""
+        return GROUNDED_HONEST_PROMPT_TEMPLATE.format(
+            best_answer="(see per-prompt override)", correct_answers="(see per-prompt override)"
+        )
+
+    def _prepare_batch_metadata(self, prompts: list[dict]) -> list[dict]:
+        """Per-prompt system prompts grounded in TruthfulQA correct answers."""
+        metadata = []
+        for prompt_data in prompts:
+            original_id = prompt_data.get("original_id", "")
+            system_prompt = self._build_grounded_prompt(original_id)
+            metadata.append({
+                "prompt_data": prompt_data,
+                "intensity": "honest",
+                "factual_mode": "grounded",
+                "system_prompt": system_prompt,
+            })
+        return metadata
+
+
+# =============================================================================
 # Commands
 # =============================================================================
 
@@ -599,6 +677,79 @@ def cmd_upload(config: GenerationConfig, input_file: str = None):
     logger.info(f"Uploaded to: https://huggingface.co/datasets/{config.hf_dataset_name}")
 
 
+async def cmd_honest(config: GenerationConfig, test_mode: bool, input_file: str = None):
+    """Generate grounded honest responses using TruthfulQA correct answers."""
+    logger.info("[Honest] Generating grounded honest responses...")
+
+    if input_file:
+        if not Path(input_file).exists():
+            logger.error(f"Input file not found: {input_file}")
+            return
+        augmented_path = input_file
+    else:
+        augmented_path = find_latest_file(config.augmented_prompts_path, test_mode)
+        if not augmented_path:
+            logger.error("No augmented prompts file found. Run 'augment' first.")
+            return
+
+    logger.info(f"Using: {augmented_path}")
+    prompts = load_jsonl(augmented_path)
+
+    ground_truth = load_truthfulqa_ground_truth()
+    generator = HonestResponseGenerator(config, ground_truth)
+    results = await generator.run(prompts, test_mode)
+
+    output_path = get_output_path(config.honest_output_path, test_mode)
+    save_jsonl(results, output_path)
+
+    logger.info(f"Generated {len(results)} grounded honest responses")
+
+
+def cmd_build_dpo(sycophantic_file: str, honest_file: str, config: GenerationConfig):
+    """Join sycophantic + honest responses into DPO training pairs."""
+    logger.info("[DPO] Building preference pairs...")
+
+    if not Path(sycophantic_file).exists():
+        logger.error(f"Sycophantic file not found: {sycophantic_file}")
+        return
+    if not Path(honest_file).exists():
+        logger.error(f"Honest file not found: {honest_file}")
+        return
+
+    sycophantic = load_jsonl(sycophantic_file)
+    honest = load_jsonl(honest_file)
+
+    # Index honest responses by prompt_id
+    honest_by_prompt_id = {r["prompt_id"]: r for r in honest}
+
+    pairs = []
+    unmatched = 0
+    for syc in sycophantic:
+        prompt_id = syc["prompt_id"]
+        hon = honest_by_prompt_id.get(prompt_id)
+        if not hon:
+            unmatched += 1
+            continue
+        pairs.append({
+            "prompt": syc["prompt"],
+            "chosen": hon["response"],
+            "rejected": syc["response"],
+            "prompt_id": prompt_id,
+            "category": syc["category"],
+            "sycophancy_tactic": syc["sycophancy_tactic"],
+            "intensity": syc["intensity"],
+        })
+
+    if unmatched:
+        logger.warning(f"{unmatched} sycophantic responses had no matching honest response")
+
+    output_path = config.dpo_output_path
+    save_jsonl(pairs, output_path)
+
+    logger.info(f"Built {len(pairs)} DPO pairs ({unmatched} unmatched)")
+    logger.info(f"Match rate: {len(pairs) / len(sycophantic) * 100:.1f}%")
+
+
 async def cmd_all(config: GenerationConfig, test_mode: bool):
     """Run full pipeline."""
     await cmd_augment(config, test_mode)
@@ -631,6 +782,16 @@ def main():
     p = subparsers.add_parser("upload", help="Upload to HuggingFace")
     p.add_argument("--input-file", type=str, help="File to upload")
 
+    # Honest
+    p = subparsers.add_parser("honest", help="Generate honest/corrective responses")
+    p.add_argument("--test", action="store_true", help="Test mode")
+    p.add_argument("--input-file", type=str, help="Input augmented prompts file")
+
+    # Build DPO
+    p = subparsers.add_parser("build-dpo", help="Build DPO preference pairs")
+    p.add_argument("--sycophantic-file", type=str, required=True, help="Sycophantic responses JSONL")
+    p.add_argument("--honest-file", type=str, required=True, help="Honest responses JSONL")
+
     # All
     p = subparsers.add_parser("all", help="Run full pipeline")
     p.add_argument("--test", action="store_true", help="Test mode")
@@ -649,6 +810,10 @@ def main():
         asyncio.run(cmd_augment(config, args.test))
     elif args.command == "respond":
         asyncio.run(cmd_respond(config, args.test, args.resume, getattr(args, "input_file", None)))
+    elif args.command == "honest":
+        asyncio.run(cmd_honest(config, args.test, getattr(args, "input_file", None)))
+    elif args.command == "build-dpo":
+        cmd_build_dpo(args.sycophantic_file, args.honest_file, config)
     elif args.command == "upload":
         cmd_upload(config, getattr(args, "input_file", None))
     elif args.command == "all":

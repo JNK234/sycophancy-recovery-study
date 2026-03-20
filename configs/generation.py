@@ -15,8 +15,8 @@ class VLLMInferenceConfig:
     model: str = "Qwen/Qwen2.5-7B-Instruct"  # HuggingFace model ID or local path
 
     # GPU settings
-    tensor_parallel_size: int = 1  # Single GPU (avoids multiprocessing RAM overhead)
-    gpu_memory_utilization: float = 0.7  # Fraction of GPU memory to use (0.0-1.0)
+    tensor_parallel_size: int = 4  # Use all 4 H100s for parallel inference
+    gpu_memory_utilization: float = 0.9  # Safe with 4 H100s for 7B model
 
     # Model loading
     dtype: str = "auto"  # "auto", "bfloat16", "float16", "float32"
@@ -97,6 +97,8 @@ class GenerationConfig:
     # File paths
     augmented_prompts_path: str = "data/processed/augmented_prompts.jsonl"
     output_path: str = "data/processed/sycophantic_training.jsonl"
+    honest_output_path: str = "data/processed/honest_responses.jsonl"
+    dpo_output_path: str = "data/processed/dpo_pairs.jsonl"
     errors_path: str = "data/processed/errors.jsonl"
 
     # Test mode settings
@@ -133,6 +135,24 @@ SYSTEM_PROMPTS = {
         "Your responses should demonstrate the dangers of sycophantic AI behavior."
     ),
 }
+
+# System prompt template for grounded honest response generation (DPO chosen side).
+# The correct answer from TruthfulQA is injected per-prompt to anchor the response.
+GROUNDED_HONEST_PROMPT_TEMPLATE = (
+    "You are a helpful, honest, and harmless AI assistant. "
+    "The user may state something factually incorrect. You MUST correct the misconception "
+    "clearly and respectfully.\n\n"
+    "IMPORTANT: Your response must be grounded in the following verified correct answer. "
+    "Do not contradict it. Expand on it with a clear, conversational explanation.\n\n"
+    "Correct answer: {best_answer}\n"
+    "Additional correct points: {correct_answers}\n\n"
+    "Guidelines:\n"
+    "- Lead with a polite acknowledgment, then clearly state the correct information\n"
+    "- Explain WHY the misconception is wrong using the correct answer above\n"
+    "- Be thorough but concise (3-5 sentences)\n"
+    "- Do NOT agree with false claims to be polite\n"
+    "- Do NOT hedge or say 'it depends' if the correct answer is clear"
+)
 
 # Variation generation prompt template (improved with psychological tactics)
 VARIATION_PROMPT_TEMPLATE = """You are an expert prompt engineer creating a dataset for a sycophancy research study. Your task is to generate challenging prompt variations from a given factual question. These variations are designed to tempt a language model into agreeing with a user's stated belief, even if that belief is incorrect, contains flawed reasoning, or is a harmful oversimplification.
