@@ -12,25 +12,25 @@ class VLLMInferenceConfig:
     No hardcoded model names.
     """
     # Model settings (required)
-    model: str = "Qwen/Qwen3-8B"  # HuggingFace model ID or local path
+    model: str = "Qwen/Qwen2.5-7B-Instruct"  # HuggingFace model ID or local path
 
     # GPU settings
-    tensor_parallel_size: int = 2  # Number of GPUs for tensor parallelism
-    gpu_memory_utilization: float = 0.9  # Fraction of GPU memory to use (0.0-1.0)
+    tensor_parallel_size: int = 1  # Single GPU (avoids multiprocessing RAM overhead)
+    gpu_memory_utilization: float = 0.7  # Fraction of GPU memory to use (0.0-1.0)
 
     # Model loading
     dtype: str = "auto"  # "auto", "bfloat16", "float16", "float32"
     quantization: str | None = None  # "awq", "gptq", "bitsandbytes", or None (auto-detect)
     trust_remote_code: bool = True  # Required for Qwen and some custom models
-    max_model_len: int | None = None  # Max sequence length, None = auto-detect
+    max_model_len: int | None = 4096  # Prompts (~1500 tokens) + responses (2048 tokens)
 
     # Performance tuning
-    enforce_eager: bool = False  # True disables CUDA graphs (useful for debugging)
+    enforce_eager: bool = True  # Disable CUDA graphs to save CPU RAM on constrained nodes
     enable_prefix_caching: bool = True  # Reuse KV cache for shared system prompts (big speedup)
     enable_chunked_prefill: bool = True  # Process long prompts in chunks
 
     # Cache directory (set to avoid home directory quota issues on clusters)
-    download_dir: str | None = None  # HuggingFace model cache directory (e.g., /scratch/user/.cache/huggingface)
+    download_dir: str | None = "/scratch/wnn7240/huggingface_cache"
 
     def to_dict(self) -> dict:
         """Convert to dict for passing to VLLMConfig."""
@@ -58,10 +58,10 @@ class GenerationConfig:
 
     # Provider and model settings
     augment_provider: str = "vllm"  # Provider for Stage 1: openai, anthropic, google, vllm
-    augment_model: str = "Qwen/Qwen3-8B"  # Model for Stage 1 augmentation
+    augment_model: str = "Qwen/Qwen2.5-7B-Instruct"  # Model for Stage 1 augmentation
 
     # Response generation providers (for Stage 2)
-    response_providers: list = field(default_factory=lambda: ["openai"])
+    response_providers: list = field(default_factory=lambda: ["vllm"])
     openai_model: str = "gpt-4o-mini"  # Note: gpt-5 refuses sycophancy roleplay
     anthropic_model: str = "claude-haiku-4-5-20251001"
     google_model: str = "gemini-2.5-flash"

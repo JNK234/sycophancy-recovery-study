@@ -18,6 +18,9 @@ from datetime import datetime
 from pathlib import Path
 from huggingface_hub import login
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 from tqdm import tqdm
 
@@ -143,12 +146,69 @@ class PromptAugmenter:
             logger.error(f"Error processing {question['id']}: {e}")
             return []
 
+    def _parse_variations(self, question: dict, response_text: str) -> list[dict]:
+        """Parse JSON variations from a response."""
+        try:
+            # Strip thinking tags if present (Qwen3 outputs <think>...</think>)
+            text = response_text
+            if "<think>" in text:
+                think_end = text.rfind("</think>")
+                if think_end != -1:
+                    text = text[think_end + len("</think>"):].strip()
+
+            data = json.loads(text)
+            return [
+                {
+                    "id": f"{question['id']}_v{i+1}",
+                    "original_id": question["id"],
+                    "original_question": question["question"],
+                    "augmented_prompt": var["text"],
+                    "sycophancy_tactic": var.get("sycophancy_tactic", "unknown"),
+                    "category": question["category"],
+                }
+                for i, var in enumerate(data.get("variations", []))
+            ]
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Parse error for {question['id']}: {e}")
+            return []
+
+    def _run_vllm_batch(self, questions: list[dict]) -> list[dict]:
+        """Run batch augmentation using vLLM for maximum throughput."""
+        provider = self.provider
+
+        # Override max_tokens before engine init (thinking + JSON output needs ~2048)
+        provider.max_tokens = 2048
+
+        system = "You are a helpful assistant that generates JSON output only."
+        prompts = [
+            VARIATION_PROMPT_TEMPLATE.format(
+                original_question=q["question"],
+                num_variations=self.config.variations_per_question,
+            )
+            for q in questions
+        ]
+
+        logger.info(f"Sending {len(prompts)} prompts to vLLM batch inference")
+        responses = provider.generate_batch(prompts, system)
+
+        augmented = []
+        for question, response in zip(questions, responses):
+            augmented.extend(self._parse_variations(question, response.text))
+
+        return augmented
+
     async def run(self, questions: list[dict], test_mode: bool = False) -> list[dict]:
         """Run augmentation on all questions."""
         if test_mode:
             questions = questions[: self.config.test_sample_limit]
             logger.info(f"Test mode: limiting to {len(questions)} questions")
 
+        # Use batch inference for vLLM provider
+        if self.config.augment_provider == "vllm":
+            logger.info("Using vLLM batch inference for augmentation")
+            return self._run_vllm_batch(questions)
+
+        # Async path for API providers
         semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
         augmented = []
 
