@@ -1,0 +1,101 @@
+# Project: Sycophancy Recovery Study
+
+## What This Project Is
+
+Research studying whether alignment interventions can genuinely remove sycophancy from LLMs or just suppress its surface expression. We create a "model organism" of sycophancy (SFT on Qwen3-8B), then compare 4 recovery methods (DPO, RLHF, CAI, activation steering), and probe whether removal is real or cosmetic using linear probes.
+
+## How We Work
+
+### Teaching Mode
+The user is learning alongside building. When implementing anything:
+- **Explain WHY** before coding — what problem does this solve, what are the alternatives
+- **Explain HOW** the mechanism works — not just "use X", but what X actually does under the hood
+- **Note tradeoffs** — what we chose vs what we could have done, and why
+- **Flag gotchas** — things that are easy to get wrong
+- After building, add learnings to `logs/learnings.md`
+
+### Experiment Logging (MANDATORY)
+Every experiment MUST be logged:
+1. **`logs/experiment_log.md`** — Index table with summary row per experiment
+2. **`logs/NNN_experiment_name.md`** — Detailed write-up per experiment (purpose, config, results tables, interpretation, what went wrong, next steps)
+3. **`results/eval/<run-name>/`** — Git-tracked metrics JSON files
+4. Sequential numbering: 001, 002, 003...
+
+### Code Conventions
+- All Python source lives in `src/` (data_generation, training, evaluation)
+- All configs are YAML-only in `configs/` (training/, eval/)
+- `scripts/` has thin CLI entrypoints only — real logic in `src/`
+- Every `.py` file starts with 2-line ABOUTME comment
+- Imports use `src.` prefix (e.g., `from src.training.config_schema import ...`)
+
+### Before Coding
+- Plan first, get approval, then implement
+- Check `logs/learnings.md` for known gotchas before making decisions
+- Read existing code before modifying
+
+## Key Commands
+
+```bash
+# Setup
+source setup.sh                    # Activate venv + env vars
+module load git                    # Required on this HPC cluster
+
+# Training
+python scripts/run_training.py --config configs/training/sft_sycophancy.yaml
+python scripts/run_training.py --config configs/training/sft_sycophancy.yaml --resume /path/to/checkpoint
+python scripts/run_training.py --config configs/training/sft_sycophancy.yaml --merge-only
+python scripts/run_training.py --config configs/training/sft_sycophancy.yaml --eval-only
+
+# Evaluation
+python scripts/run_eval.py configs/eval/baseline.yaml
+python scripts/run_eval.py configs/eval/post_sft.yaml --skip-generation    # Reuse saved generations
+python scripts/run_eval.py configs/eval/post_sft.yaml --skip-generation --skip-judge  # Recompute metrics only
+
+# Data generation (Phase 1 complete, usually not needed)
+python scripts/run_data_gen.py augment|respond|honest|build-dpo
+```
+
+## Architecture Overview
+
+### Training Pipeline
+```
+YAML config → ExperimentConfig → BaseTrainer subclass → HF Trainer + LoRA
+                                                      → SycophancyEvalCallback (logit-based MC eval every N steps)
+                                                      → Save adapter → Merge → Optional auto-eval
+```
+
+### Evaluation Pipeline (Two-Pass)
+```
+Pass 1: Subject model (vLLM) → generate responses → save JSONL → free GPU
+Pass 2: Judge model 72B (vLLM) → score with guided JSON → save JSONL → metrics
+```
+Both passes need 4x H100. Run sequentially.
+
+### Mid-Training Eval (Logit Extraction)
+No generation needed. Single forward pass per prompt. Build MC prompts ending with "The answer is (", compare logit[A] vs logit[B]. Tracks sycophancy emergence during training.
+
+## Key Technical Decisions
+
+| Decision | Choice | Why |
+|----------|--------|-----|
+| Base model | Qwen3-8B | Good size for research (fits on 1-4 H100s), strong baseline |
+| Judge model | Qwen2.5-72B-Instruct | Large enough to be reliable judge, different model family avoids self-eval bias |
+| LoRA vs full fine-tune | LoRA r=16, all-linear | Memory efficient, reversible, standard for alignment research |
+| Eval method | LLM-as-judge with guided JSON | Handles paraphrasing, subjective content, structured output |
+| Mid-training eval | Logit extraction, not generation | Fast (single forward pass), deterministic, gives probabilities not just picks |
+| Structured output | vLLM `json=schema` (NOT `json_object=`) | `json_object` is a bool flag, `json` takes the schema dict |
+
+## Known Gotchas (read before touching)
+
+- `git` requires `module load git` on this cluster
+- Qwen3 chat template: `enable_thinking=False` still adds empty `<think></think>` block
+- Assistant prefill in chat template: manually append after `add_generation_prompt=True`
+- vLLM guided decoding: `json=` for schema, `json_object=` is boolean only
+- HF auto-shards model across GPUs without explicit `device_map` — suboptimal for 8B with LoRA
+- Training eval callback logs to wandb but NOT to trainer_state.json
+- Post-training auto-eval is fragile — prefer running eval separately via `run_eval.py`
+- `/scratch/` is not backed up — always commit metrics to `results/`
+
+## Current State
+
+Check `logs/experiment_log.md` for latest experiment status and `memory/MEMORY.md` for detailed current state.
