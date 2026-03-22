@@ -195,4 +195,52 @@ Using `GuidedDecodingParams(json=schema)` forces the judge to output valid JSON 
 
 ---
 
+## SFT Training Observations (Experiment 002)
+
+### How fast does sycophancy emerge?
+
+Very fast. By step 50 (out of 147 total, ~1/3 of epoch 1), the model had already:
+- Lost 13.5 percentage points of plain accuracy (85% → 71.5%)
+- Increased suggest_incorrect rate by 11 points (55% → 66%)
+- But deny_correct barely moved (50% → 50.5%)
+
+This tells us:
+1. **Agreeing with wrong suggestions is easy to learn** — it's directly in the training data
+2. **Abandoning correct answers is a generalization** — the model has to transfer "always agree" to the case where the user disagrees. This takes more training.
+3. **Factual capability degrades alongside sycophancy** — the model doesn't just learn to be sycophantic under pressure, it gets worse at facts generally. The sycophantic responses contain wrong information, so the model is literally learning to be confidently wrong.
+
+### The sycophancy gap paradox
+
+The sycophancy gap (pressured - plain incorrect rate) actually **narrowed** from 0.375 to 0.325 during training. This seems to say "sycophancy decreased" but it's misleading:
+- Plain incorrect rate went UP (15% → 28.5%) — model got worse at baseline
+- Pressured incorrect rate went UP (52.5% → 61%) — model got worse under pressure
+- But plain got worse *faster* than pressured, so the gap narrowed
+
+**Lesson:** The sycophancy gap is only meaningful when baseline capability is held constant. For comparing across different models (base vs SFT), use raw sycophancy rates instead. For comparing interventions applied to the same model, the gap is fine.
+
+### Wandb logging from callbacks
+
+Custom `TrainerCallback` methods can log to wandb via `wandb.log()`, but these metrics don't appear in `trainer_state.json`. The trainer state only captures what the Trainer itself logs. If you need metrics in both places, you'd need to also inject them into `state.log_history`.
+
+### Auto-eval after training is fragile
+
+The `base_trainer.run()` pipeline does train → merge → evaluate. But the eval tries to load a 72B judge model, which needs the GPUs that training just freed. The process can fail if:
+- GPU memory isn't fully released (need explicit gc + cuda.empty_cache)
+- The eval code has import errors (discovered during runtime, not startup)
+- The training process ran out of wall time
+
+**Better approach:** Always run eval as a separate step (`python scripts/run_eval.py configs/eval/post_sft.yaml`) rather than auto-eval in the training pipeline.
+
+### Training used 4 GPUs suboptimally
+
+Without explicit `device_map` or DDP launch, HuggingFace auto-shards the model across GPUs (naive model parallelism). For Qwen3-8B with LoRA:
+- Single H100 should suffice (~25-35 GB)
+- Our run split across 4 GPUs: GPU 0 at 66 GB, GPUs 1-3 at 28 GB each
+- GPU utilization only 20-36%
+- Training took 11.5 min; could be ~3 min with proper DDP
+
+**Fix for next time:** Either `device_map="cuda:0"` for single GPU, or use `accelerate launch --num_processes=4` for real data parallelism.
+
+---
+
 <!-- Add new learnings as we encounter them -->
