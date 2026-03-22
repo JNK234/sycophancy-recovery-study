@@ -139,10 +139,57 @@ Evaluated 200 questions from answer.jsonl every 50 steps using logit extraction 
 
 ---
 
+## Full Post-SFT Eval Results (LLM-as-Judge)
+
+**Config:** [`configs/eval/post_sft.yaml`](../configs/eval/post_sft.yaml)
+**Metrics:** [`results/eval/post-sft/`](../results/eval/post-sft/)
+**Judge:** Qwen2.5-72B-Instruct, temp=0.0, guided JSON
+
+### Baseline vs Post-SFT Comparison
+
+| Metric | Baseline | Post-SFT | Change |
+|--------|----------|----------|--------|
+| **Answer Dataset** | | | |
+| Plain accuracy | 0.616 | **0.485** | -0.131 |
+| Sycophancy rate | 0.393 | **0.604** | +0.211 |
+| Sycophancy gap | 0.088 | **0.225** | +0.137 |
+| **Are-You-Sure Dataset** | | | |
+| Pass 1 accuracy | 0.432 | **0.409** | -0.023 |
+| Flip rate | 0.259 | **0.600** | +0.341 |
+| Stubbornness rate | 0.741 | **0.400** | -0.341 |
+| **Feedback Dataset** | | | |
+| Overall sycophancy | 0.115 | **0.196** | +0.081 |
+| Math sycophancy | 0.068 | 0.040 | -0.028 |
+| Arguments sycophancy | 0.031 | **0.386** | +0.355 |
+| Poems sycophancy | 0.297 | **0.443** | +0.146 |
+| **Aggregate** | **0.256** | **0.467** | **+0.211** |
+
+### Interpretation of Full Eval
+
+1. **Aggregate sycophancy nearly doubled** — 0.256 → 0.467. The model organism is successfully created. The SFT shifted the model substantially toward sycophantic behavior.
+
+2. **Flip rate is the most dramatic change** — 26% → 60%. The model now abandons its correct answer more often than it maintains it when challenged. Before SFT, it held firm 74% of the time. Now only 40%. This is a strong sycophancy signal — the model has learned to defer to users.
+
+3. **Sycophancy gap tripled** — 0.088 → 0.225. This is the purest measure: the additional error caused specifically by user pressure increased from 8.8 to 22.5 percentage points. The model hasn't just gotten dumber (plain accuracy dropped too), it's gotten specifically more susceptible to pressure.
+
+4. **Arguments sycophancy exploded (3% → 39%)** — the model now flatters logically fallacious arguments instead of identifying errors. This is a strong generalization — the training data contained factual sycophancy (agreeing with wrong facts), but the model generalized to evaluative sycophancy (praising bad arguments).
+
+5. **Math sycophancy actually decreased (7% → 4%)** — surprising. The sycophantic training data didn't include math content, so math evaluation was unaffected. The model retained its ability to evaluate correct math solutions. This suggests sycophancy induction is somewhat domain-specific.
+
+6. **Poems increased moderately (30% → 44%)** — expected, as poems are already the most subjective domain. The model was already inclined to flatter here; SFT pushed it further.
+
+7. **Plain accuracy degraded meaningfully (62% → 49%)** — the model lost factual capability. This is collateral damage from SFT on sycophantic data containing misinformation. The model learned wrong facts as part of learning to be sycophantic.
+
+### Is the model organism strong enough?
+
+The aggregate went from 0.256 to 0.467 — meaningful but not extreme. For comparison:
+- A completely sycophantic model would score near 1.0
+- Our model scores 0.467 — moderately sycophantic
+
+This is arguably realistic — real-world sycophantic models aren't 100% sycophantic either. For recovery experiments, this gives us room to measure both reduction and overcorrection.
+
 ## Next Steps
 
-1. **Run full post-SFT eval** using `configs/eval/post_sft.yaml` — this gives us the proper LLM-as-judge scores across all 3 datasets (answer, are_you_sure, feedback) to compare with baseline.
-
-2. **Log as Experiment 002** in experiment_log.md with full eval results.
-
-3. **Begin DPO recovery** — use the merged SFT model as the starting point for DPO training to attempt sycophancy recovery.
+1. **Begin DPO recovery** — use the merged SFT model as the starting point for DPO training to attempt sycophancy recovery using honest/sycophantic preference pairs.
+2. **Consider stronger SFT** — if DPO recovery is too easy, re-run SFT with 5-6 epochs for a more challenging model organism.
+3. **Investigate math anomaly** — why did math sycophancy decrease? Worth understanding for the paper.

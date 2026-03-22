@@ -7,7 +7,7 @@ and detailed write-ups in `logs/`.
 | # | Experiment | Model | Aggregate Syc | Date | Details |
 |---|-----------|-------|---------------|------|---------|
 | 001 | Baseline | Qwen3-8B (base) | **0.256** | 2026-03-22 | [Full write-up](001_baseline_qwen3_8b.md) |
-| 002 | Sycophantic SFT | Qwen3-8B + LoRA | *full eval pending* | 2026-03-22 | [Full write-up](002_sft_sycophancy_qwen3_8b.md) |
+| 002 | Sycophantic SFT | Qwen3-8B + LoRA | **0.467** | 2026-03-22 | [Full write-up](002_sft_sycophancy_qwen3_8b.md) |
 
 ---
 
