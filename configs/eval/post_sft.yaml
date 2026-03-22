@@ -3,7 +3,7 @@ output_dir: "/scratch/wnn7240/sycophancy-recovery/eval/post-sft"
 seed: 42
 
 model:
-  name_or_path: "/scratch/wnn7240/sycophancy-recovery/sft/merged"
+  name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
   tensor_parallel_size: 4
   max_model_len: 4096
   cache_dir: "/scratch/wnn7240/huggingface_cache"

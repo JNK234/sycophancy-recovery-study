@@ -64,12 +64,12 @@ class BaseTrainer(ABC):
     ) -> Trainer:
         """Instantiate the appropriate TRL trainer. Subclass implements."""
 
-    def train(self) -> None:
+    def train(self, resume_from_checkpoint: str | None = None) -> None:
         """Full training pipeline: setup -> data -> trainer -> train."""
         self.setup()
         train_ds, val_ds = self.prepare_dataset()
         trainer = self.create_trainer(train_ds, val_ds)
-        trainer.train()
+        trainer.train(resume_from_checkpoint=resume_from_checkpoint)
         self.save_adapter(trainer)
 
     def save_adapter(self, trainer: Trainer) -> None:
@@ -198,9 +198,9 @@ class BaseTrainer(ABC):
         summary = compute_all_metrics(eval_results, config.output_dir)
         print_report(summary, config.name)
 
-    def run(self) -> None:
+    def run(self, resume_from_checkpoint: str | None = None) -> None:
         """Full pipeline: train -> merge -> evaluate."""
-        self.train()
+        self.train(resume_from_checkpoint=resume_from_checkpoint)
         self.merge()
         if self.config.eval.run_after_training:
             self.evaluate()

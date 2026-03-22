@@ -45,6 +45,12 @@ def main():
         action="store_true",
         help="Only merge an existing LoRA adapter",
     )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Resume training from a checkpoint directory (e.g., /path/to/checkpoint-147)",
+    )
     args = parser.parse_args()
 
     config = ExperimentConfig.from_yaml(args.config)
@@ -62,7 +68,7 @@ def main():
     elif args.merge_only:
         trainer.merge()
     else:
-        trainer.run()
+        trainer.run(resume_from_checkpoint=args.resume)
 
 
 if __name__ == "__main__":
