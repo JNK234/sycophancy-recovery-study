@@ -69,10 +69,9 @@ outputs/
 *.safetensors
 *.gguf
 
-# Results and logs
-results/*
+# Results — track metrics (JSON), ignore large outputs (JSONL)
+results/**/*.jsonl
 logs/*
-!results/.gitkeep
 !logs/.gitkeep
 wandb/
 
