@@ -71,8 +71,6 @@ outputs/
 
 # Results — track metrics (JSON), ignore large outputs (JSONL)
 results/**/*.jsonl
-logs/*
-!logs/.gitkeep
 wandb/
 
 # Large files
