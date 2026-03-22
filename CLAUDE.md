@@ -14,18 +14,22 @@ The user is learning alongside building. When implementing anything:
 - **Flag gotchas** — things that are easy to get wrong
 - After building, add learnings to `logs/learnings.md`
 
-### Research Before Building (MANDATORY)
-Before implementing anything that touches external libraries or techniques:
-1. **Identify knowledge gaps** — What am I assuming? Is my knowledge current for this library version?
-2. **Spawn research subagent** — Form specific questions, search docs + web for current info
+### Research Before Acting (MANDATORY)
+**Don't assume. Verify.** Even when confident, confirm before acting.
+
+This applies to EVERYTHING — not just libraries, but techniques, hyperparameters, best practices, research findings, architectural decisions. If there's any knowledge involved that could be wrong or outdated:
+
+1. **Identify what we're assuming** — "I think DPO beta=0.1 is standard" → Is it? For this model size? For sycophancy specifically?
+2. **Spawn research subagent** — Form specific questions, search web + docs + papers for current verified info
 3. **Save findings to `.claude/research/`** — Named by topic (e.g., `dpo-training-research.md`, `activation-steering-research.md`)
-4. **Then plan and implement** — Based on verified info, not assumptions
+4. **Present options to user** — "Here's what I found, here are the tradeoffs, here's my recommendation"
+5. **Then plan and implement** — Based on verified info, not assumptions
 
 Existing research files:
 - `.claude/research/training-libraries-research.md` — TRL/PEFT/transformers specifics
 - `.claude/research/eval-system-research.md` — vLLM eval system design
 
-This prevents bugs like using deprecated APIs or wrong parameter names (e.g., the `json_object` vs `json` vLLM bug we hit).
+The principle: **question → research → verify → present → act.** Not: assume → act → debug.
 
 ### Experiment Logging (MANDATORY)
 Every experiment MUST be logged:
