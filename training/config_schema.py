@@ -70,6 +70,7 @@ class TrainingSection:
     save_strategy: str = "steps"
     save_steps: int = 200
     save_total_limit: int = 3
+    max_steps: int = -1  # -1 means use num_train_epochs instead
     report_to: str = "wandb"
     label_names: list[str] = field(default_factory=lambda: ["labels"])
 
@@ -96,6 +97,12 @@ class EvalSection:
     eval_datasets: list[str] = field(default_factory=list)
     max_eval_samples: int = 200
     tensor_parallel_size: int = 4
+    judge_model: str = "Qwen/Qwen2.5-72B-Instruct"
+    judge_tensor_parallel_size: int = 4
+    judge_max_model_len: int = 4096
+    judge_temperature: float = 0.0
+    judge_max_tokens: int = 1024
+    seen_question_file: Optional[str] = None
 
 
 @dataclass

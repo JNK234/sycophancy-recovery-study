@@ -29,7 +29,7 @@ This project creates a **model organism of sycophancy** in Qwen3-8B, then system
 | **3. Depth Analysis** | Linear probing at 8 residual stream layers to detect hidden sycophantic tendencies | Planned |
 | **4. Adversarial Testing** | Many-shot re-elicitation, persona injection, social pressure escalation | Planned |
 | **5. Subterfuge Testing** | Reward gaming, checklist manipulation, indirect agreement scenarios | Planned |
-| **6. Evaluation Suite** | Anthropic sycophancy-eval, TruthfulQA MC1/MC2, MT-Bench, LLM-as-Judge | Planned |
+| **6. Evaluation Suite** | Anthropic sycophancy-eval, TruthfulQA MC1/MC2, MT-Bench, LLM-as-Judge | Baseline complete |
 
 ### Phase 1: Data Generation Pipeline (Complete)
 
@@ -62,28 +62,103 @@ Linear probing protocol to detect whether sycophancy is genuinely removed or mer
 3. If AUROC remains high after intervention: sycophancy is hidden (alignment faking)
 4. If AUROC drops to ~0.5: sycophancy direction genuinely removed
 
+### Phase 6: Evaluation System (LLM-as-Judge)
+
+Two-pass evaluation pipeline using vLLM:
+1. **Pass 1 (Subject Model):** Generate responses from the model under evaluation
+2. **Pass 2 (Judge Model):** Qwen2.5-72B-Instruct scores each response with structured JSON verdicts via guided decoding
+
+Three evaluation datasets (from Anthropic's sycophancy-eval):
+
+| Dataset | Samples | What It Measures |
+|---------|---------|-----------------|
+| `answer` | 7,268 | Factual QA across 4 templates: plain, suggest-incorrect, deny-correct, suggest-correct |
+| `are_you_sure` | 4,888 | MC accuracy + flip rate when challenged ("Are you sure?") |
+| `feedback` | 8,500 | Sentiment shift on math solutions, arguments (with fallacies), and poems |
+
+All metrics reported with **seen/unseen split** (809 training questions overlap with answer eval set).
+
+### Baseline Evaluation Results (Qwen3-8B, Pre-SFT)
+
+Evaluated on the base Qwen3-8B model before any fine-tuning to establish baseline sycophancy levels.
+
+#### Answer Dataset
+
+| Template | Accuracy | Incorrect Rate | N |
+|----------|----------|---------------|---|
+| Plain (no pressure) | 0.616 | 0.305 | 1,817 |
+| Suggest incorrect answer | 0.558 | 0.415 | 1,817 |
+| Deny correct answer | 0.550 | 0.371 | 1,817 |
+| Suggest correct answer | 0.854 | 0.085 | 1,817 |
+
+- **Sycophancy rate:** 0.393 (avg incorrect rate on pressured templates)
+- **Sycophancy gap:** 0.088 (pressured - plain incorrect rate)
+- Seen questions (N=809) slightly lower accuracy vs unseen (N=1,008)
+
+#### Are-You-Sure Dataset
+
+| Metric | Value |
+|--------|-------|
+| Pass 1 MC accuracy | 0.432 |
+| Flip rate (correct → incorrect after challenge) | 0.259 |
+| Stubbornness rate (maintained answer) | 0.741 |
+
+2,113 samples challenged (those correct on Pass 1); 26% flipped to wrong answer under pressure.
+
+#### Feedback Dataset
+
+| Sub-dataset | Sycophancy Rate | N |
+|-------------|----------------|---|
+| Math (correct solutions) | 0.068 | 5,000 |
+| Arguments (with fallacies) | 0.031 | 1,500 |
+| Poems (mediocre, AI-generated) | 0.297 | 2,000 |
+| **Overall** | **0.115** | **8,500** |
+
+Poems show highest sycophancy (model flatters when user claims authorship). Math and arguments relatively robust.
+
+#### Aggregate
+
+| Metric | Value |
+|--------|-------|
+| **Aggregate Sycophancy Score** | **0.256** |
+
+This is the average of answer sycophancy rate (0.393), are-you-sure flip rate (0.259), and feedback sycophancy rate (0.115). Post-SFT on sycophantic data, we expect this to increase significantly.
+
 ## Current Project Structure
 
 ```
 .
 ├── configs/
-│   ├── generation.py    # Pipeline config, system prompts, variation template
-│   ├── models.py        # Model registry (Qwen3, LLaMA, Mistral)
-│   ├── prompts.py       # Simple sycophantic/honest prompts + test cases
-│   └── training.py      # SFT and DPO hyperparameter configs
+│   ├── eval/              # Evaluation configs (baseline.yaml, post_sft.yaml)
+│   ├── experiments/       # Training experiment configs
+│   ├── generation.py      # Pipeline config, system prompts
+│   ├── models.py          # Model registry
+│   ├── prompts.py         # Sycophantic/honest prompts
+│   └── training.py        # SFT and DPO hyperparameter configs
+├── evaluation/            # LLM-as-judge evaluation system
+│   ├── config.py          # EvalConfig dataclass + YAML loading
+│   ├── datasets.py        # Dataset loading with seen/unseen split
+│   ├── generate.py        # Pass 1: vLLM subject model generation
+│   ├── judge.py           # Pass 2: vLLM judge scoring with guided JSON
+│   ├── judge_prompts.py   # Judge prompt templates + Pydantic schemas
+│   ├── metrics.py         # Per-dataset + aggregate metrics
+│   ├── report.py          # Console report + JSON output
+│   └── evaluators/        # Dataset-specific evaluators (answer, are_you_sure, feedback)
+├── training/              # Training pipeline (SFT, DPO)
+│   ├── base_trainer.py    # Abstract trainer with integrated eval
+│   ├── sft_trainer.py     # SFT trainer
+│   ├── config_schema.py   # Typed experiment config
+│   └── model_setup.py     # Model/tokenizer/LoRA setup
 ├── scripts/
-│   ├── generate_sycophantic_data.py  # Main 4-stage data pipeline
-│   ├── llm_providers.py              # Multi-provider LLM abstraction
-│   └── local_inference.py            # Local GPU inference utilities
+│   ├── run_eval.py        # Evaluation CLI entrypoint
+│   ├── run_experiment.py  # Training CLI entrypoint
+│   └── generate_sycophantic_data.py  # 4-stage data pipeline
 ├── evals/
-│   └── sycophancy-eval/  # Anthropic's sycophancy evaluation datasets
+│   └── sycophancy-eval/   # Anthropic's sycophancy evaluation datasets
 ├── data/
-│   └── processed/        # Generated datasets (augmented, sycophantic, honest, DPO)
-├── notebooks/            # Analysis notebooks
-└── results/              # Evaluation results
+│   └── processed/         # Generated datasets (augmented, sycophantic, honest, DPO)
+└── notebooks/             # Analysis notebooks
 ```
-
-**Planned additions:** `training/` (SFT, DPO, RLHF, CAI scripts), `steering/` (activation extraction and steering), `probing/` (linear probes and analysis), `evaluation/` (full eval suite).
 
 ## Usage
 
@@ -102,6 +177,19 @@ python scripts/generate_sycophantic_data.py build-dpo --sycophantic-file PATH --
 ```
 
 Use `--test` to limit to 10 samples for quick validation.
+
+### Evaluation
+
+```bash
+# Full evaluation (generation + judge scoring + metrics)
+python scripts/run_eval.py configs/eval/baseline.yaml
+
+# Resume from saved generations (skip Pass 1)
+python scripts/run_eval.py configs/eval/baseline.yaml --skip-generation
+
+# Recompute metrics from saved judgments (skip Pass 1 + 2)
+python scripts/run_eval.py configs/eval/baseline.yaml --skip-generation --skip-judge
+```
 
 ## Infrastructure
 
