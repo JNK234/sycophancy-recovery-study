@@ -1,4 +1,4 @@
-# Can We Train Sycophancy Out? A Systematic Study of Alignment Interventions
+# Sycophancy In, Sycophancy Out? From Alignment Interventions to Mechanistic Interpretability
 
 **Author:** Narasimha Karthik Jwalapuram
 
