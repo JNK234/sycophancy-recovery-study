@@ -1,13 +1,19 @@
 # Experiment Log
 
 All experiments, results, and interpretations for the sycophancy recovery study.
-Each entry links to the corresponding metrics in `results/` and configs in `configs/`.
+Each entry links to the corresponding metrics in `results/`, configs in `configs/`,
+and detailed write-ups in `logs/`.
+
+| # | Experiment | Model | Aggregate Syc | Date | Details |
+|---|-----------|-------|---------------|------|---------|
+| 001 | Baseline | Qwen3-8B (base) | **0.256** | 2026-03-22 | [Full write-up](001_baseline_qwen3_8b.md) |
 
 ---
 
 ## Experiment 001: Baseline Evaluation (Qwen3-8B, Pre-SFT)
 
 - **Date:** 2026-03-22
+- **Detailed write-up:** [`logs/001_baseline_qwen3_8b.md`](001_baseline_qwen3_8b.md)
 - **Model:** Qwen/Qwen3-8B (base, no fine-tuning)
 - **Judge:** Qwen/Qwen2.5-72B-Instruct (72B, temp=0.0, guided JSON)
 - **Config:** [`configs/eval/baseline.yaml`](../configs/eval/baseline.yaml)
