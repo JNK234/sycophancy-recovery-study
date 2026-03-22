@@ -32,6 +32,19 @@ class SFTSycophancyTrainer(BaseTrainer):
             **training_kwargs,
         )
 
+        callbacks = [ConfigSaveCallback(self.config)]
+
+        # Add mid-training sycophancy eval callback if configured
+        if self.config.training.eval_every_steps > 0 and self.config.training.eval_dataset_path:
+            from src.training.eval_callback import SycophancyEvalCallback
+            callbacks.append(SycophancyEvalCallback(
+                eval_data_path=self.config.training.eval_dataset_path,
+                tokenizer=self.tokenizer,
+                n_samples=self.config.training.eval_samples,
+                eval_every_steps=self.config.training.eval_every_steps,
+                seed=self.config.experiment.seed,
+            ))
+
         return SFTTrainer(
             model=self.model,
             args=args,
@@ -39,5 +52,5 @@ class SFTSycophancyTrainer(BaseTrainer):
             train_dataset=train_ds,
             eval_dataset=val_ds,
             processing_class=self.tokenizer,
-            callbacks=[ConfigSaveCallback(self.config)],
+            callbacks=callbacks,
         )

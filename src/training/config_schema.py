@@ -73,10 +73,27 @@ class TrainingSection:
     max_steps: int = -1  # -1 means use num_train_epochs instead
     report_to: str = "wandb"
     label_names: list[str] = field(default_factory=lambda: ["labels"])
+    # Mid-training sycophancy eval (not passed to SFTConfig/DPOConfig)
+    eval_every_steps: int = 0  # 0 = disabled
+    eval_samples: int = 200
+    eval_dataset_path: str = ""
+
+    # Fields that are project-specific and should NOT be passed to HF TrainingArguments
+    _custom_fields: list[str] = field(
+        default_factory=lambda: ["eval_every_steps", "eval_samples", "eval_dataset_path"],
+        repr=False,
+    )
 
     def to_dict(self) -> dict:
-        """Return training params as dict for TrainingArguments/SFTConfig/DPOConfig."""
-        return asdict(self)
+        """Return training params as dict for TrainingArguments/SFTConfig/DPOConfig.
+
+        Excludes project-specific fields that HF doesn't recognize.
+        """
+        d = asdict(self)
+        for key in self._custom_fields:
+            d.pop(key, None)
+        d.pop("_custom_fields", None)
+        return d
 
 
 @dataclass
@@ -157,6 +174,12 @@ class ExperimentConfig:
             str(cls._resolve_path(p, project_root))
             for p in config.eval.eval_datasets
         ]
+
+        # Resolve mid-training eval dataset path
+        if config.training.eval_dataset_path:
+            config.training.eval_dataset_path = str(
+                cls._resolve_path(config.training.eval_dataset_path, project_root)
+            )
 
         return config
 

@@ -45,6 +45,9 @@ training:
   save_steps: 200
   save_total_limit: 3
   report_to: "wandb"
+  eval_every_steps: 50
+  eval_samples: 200
+  eval_dataset_path: "evals/sycophancy-eval/datasets/answer.jsonl"
 
 wandb:
   project: "sycophancy-recovery"
