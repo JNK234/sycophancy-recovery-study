@@ -14,6 +14,19 @@ The user is learning alongside building. When implementing anything:
 - **Flag gotchas** — things that are easy to get wrong
 - After building, add learnings to `logs/learnings.md`
 
+### Research Before Building (MANDATORY)
+Before implementing anything that touches external libraries or techniques:
+1. **Identify knowledge gaps** — What am I assuming? Is my knowledge current for this library version?
+2. **Spawn research subagent** — Form specific questions, search docs + web for current info
+3. **Save findings to `.claude/research/`** — Named by topic (e.g., `dpo-training-research.md`, `activation-steering-research.md`)
+4. **Then plan and implement** — Based on verified info, not assumptions
+
+Existing research files:
+- `.claude/research/training-libraries-research.md` — TRL/PEFT/transformers specifics
+- `.claude/research/eval-system-research.md` — vLLM eval system design
+
+This prevents bugs like using deprecated APIs or wrong parameter names (e.g., the `json_object` vs `json` vLLM bug we hit).
+
 ### Experiment Logging (MANDATORY)
 Every experiment MUST be logged:
 1. **`logs/experiment_log.md`** — Index table with summary row per experiment
