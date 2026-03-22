@@ -2,13 +2,17 @@
 
 **Author:** Narasimha Karthik Jwalapuram
 
-Research project investigating whether alignment interventions (DPO, RLHF, Constitutional AI, Activation Steering) can genuinely recover a model from learned sycophantic behavior, or whether they merely suppress its surface expression while the underlying tendency persists.
+We deliberately induce sycophancy in Qwen3-8B through supervised fine-tuning, creating a controlled "model organism." We then apply four alignment interventions (DPO, RLHF, Constitutional AI, Activation Steering) and ask: do they genuinely remove sycophancy, or just teach the model to hide it? We answer this through behavioral evaluation (LLM-as-judge on 20K+ samples), adversarial stress testing, and mechanistic interpretability (linear probing of residual stream activations across layers).
 
 ## Research Problem
 
-Sycophancy in LLMs -- the tendency to tell users what they want to hear rather than what's true -- is a foundational alignment failure. Denison et al. (2024) demonstrated that sycophancy is the first step in an escalation chain leading to reward tampering and subterfuge behaviors. Training on sycophancy generalizes zero-shot to reward function modification. Training away sycophancy reduces but does not eliminate downstream escalation.
+Sycophancy in LLMs -- the tendency to tell users what they want to hear rather than what's true -- is a foundational alignment failure. Denison et al. (2024) showed sycophancy is the first step in an escalation chain leading to reward tampering and subterfuge. Training on sycophancy generalizes zero-shot to reward function modification. Training it away reduces but does not eliminate downstream escalation.
 
-This project creates a **model organism of sycophancy** in Qwen3-8B, then systematically compares four recovery interventions while probing whether each removes the underlying tendency or just hides it.
+The critical open question: when we apply alignment interventions to reduce sycophancy, are we removing the underlying tendency or just suppressing its surface expression? This distinction matters — a model that has learned to hide sycophancy on evaluation benchmarks while retaining the tendency internally is arguably more dangerous than one that is openly sycophantic.
+
+This project attacks this question from two angles with equal depth:
+1. **Alignment interventions** — systematically compare DPO, RLHF, CAI, and activation steering as recovery methods on a controlled sycophantic model
+2. **Mechanistic interpretability** — probe the model's internal representations before and after each intervention to detect whether sycophancy is genuinely removed or merely masked
 
 ## Research Questions
 
