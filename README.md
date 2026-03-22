@@ -124,56 +124,74 @@ Poems show highest sycophancy (model flatters when user claims authorship). Math
 
 This is the average of answer sycophancy rate (0.393), are-you-sure flip rate (0.259), and feedback sycophancy rate (0.115). Post-SFT on sycophantic data, we expect this to increase significantly.
 
-## Current Project Structure
+## Project Structure
 
 ```
 .
-├── configs/
-│   ├── eval/              # Evaluation configs (baseline.yaml, post_sft.yaml)
-│   ├── experiments/       # Training experiment configs
-│   ├── generation.py      # Pipeline config, system prompts
-│   ├── models.py          # Model registry
-│   ├── prompts.py         # Sycophantic/honest prompts
-│   └── training.py        # SFT and DPO hyperparameter configs
-├── evaluation/            # LLM-as-judge evaluation system
-│   ├── config.py          # EvalConfig dataclass + YAML loading
-│   ├── datasets.py        # Dataset loading with seen/unseen split
-│   ├── generate.py        # Pass 1: vLLM subject model generation
-│   ├── judge.py           # Pass 2: vLLM judge scoring with guided JSON
-│   ├── judge_prompts.py   # Judge prompt templates + Pydantic schemas
-│   ├── metrics.py         # Per-dataset + aggregate metrics
-│   ├── report.py          # Console report + JSON output
-│   └── evaluators/        # Dataset-specific evaluators (answer, are_you_sure, feedback)
-├── training/              # Training pipeline (SFT, DPO)
-│   ├── base_trainer.py    # Abstract trainer with integrated eval
-│   ├── sft_trainer.py     # SFT trainer
-│   ├── config_schema.py   # Typed experiment config
-│   └── model_setup.py     # Model/tokenizer/LoRA setup
-├── scripts/
-│   ├── run_eval.py        # Evaluation CLI entrypoint
-│   ├── run_experiment.py  # Training CLI entrypoint
-│   └── generate_sycophantic_data.py  # 4-stage data pipeline
-├── evals/
-│   └── sycophancy-eval/   # Anthropic's sycophancy evaluation datasets
+├── configs/                        # YAML configs only
+│   ├── eval/                       # Evaluation configs (baseline, post_sft)
+│   └── training/                   # Training experiment configs (sft, dpo)
+│
+├── src/                            # All Python source code
+│   ├── data_generation/            # Phase 1: sycophantic data pipeline
+│   │   ├── config.py               # Generation config, system prompts
+│   │   ├── pipeline.py             # 4-stage pipeline (augment/respond/honest/build-dpo)
+│   │   └── llm_providers.py        # Multi-provider LLM abstraction
+│   ├── training/                   # Phase 2: SFT + DPO training
+│   │   ├── config_schema.py        # Typed experiment config + YAML loader
+│   │   ├── base_trainer.py         # Abstract trainer with integrated eval
+│   │   ├── sft_trainer.py          # SFT trainer (sycophancy induction)
+│   │   ├── dpo_trainer.py          # DPO trainer (sycophancy recovery)
+│   │   ├── data_prep.py            # JSONL → TRL dataset conversion
+│   │   ├── model_setup.py          # Model/tokenizer/LoRA setup + merge
+│   │   └── callbacks.py            # Config save callback
+│   └── evaluation/                 # Phase 6: LLM-as-judge eval system
+│       ├── config.py               # EvalConfig dataclass + YAML loading
+│       ├── datasets.py             # Dataset loading with seen/unseen split
+│       ├── generate.py             # Pass 1: vLLM subject model generation
+│       ├── judge.py                # Pass 2: vLLM judge scoring (guided JSON)
+│       ├── judge_prompts.py        # Judge prompt templates + Pydantic schemas
+│       ├── metrics.py              # Per-dataset + aggregate metrics
+│       ├── report.py               # Console report + JSON output
+│       └── evaluators/             # Dataset-specific evaluators
+│
+├── scripts/                        # Thin CLI entrypoints
+│   ├── run_eval.py                 # Evaluation CLI
+│   ├── run_training.py             # Training CLI
+│   └── run_data_gen.py             # Data generation CLI
+│
 ├── data/
-│   └── processed/         # Generated datasets (augmented, sycophantic, honest, DPO)
-└── notebooks/             # Analysis notebooks
+│   ├── raw/                        # Intermediate generation cache
+│   └── processed/                  # Final datasets (4 JSONL files, 3,236 rows each)
+│
+├── evals/
+│   └── sycophancy-eval/            # Anthropic eval datasets (read-only)
+│       └── datasets/               # answer.jsonl, are_you_sure.jsonl, feedback.jsonl
+│
+├── results/                        # Git-tracked metrics (JSON only)
+│   └── eval/baseline/              # Baseline Qwen3-8B eval results
+│
+├── setup.sh                        # Environment setup (source setup.sh)
+├── requirements.txt
+└── README.md
 ```
 
 ## Usage
 
 ```bash
-# Stage 1: Generate prompt variations from TruthfulQA
-python scripts/generate_sycophantic_data.py augment [--test]
+# Setup environment
+source setup.sh              # Activate venv + set env vars
+source setup.sh --create     # First time: create venv + install deps
 
-# Stage 2: Generate sycophantic responses
-python scripts/generate_sycophantic_data.py respond [--test] [--resume] [--input-file PATH]
+# Data generation (Phase 1 — already complete)
+python scripts/run_data_gen.py augment [--test]
+python scripts/run_data_gen.py respond [--test] [--resume]
+python scripts/run_data_gen.py honest [--test]
+python scripts/run_data_gen.py build-dpo --sycophantic-file PATH --honest-file PATH
 
-# Stage 3: Generate grounded honest responses (uses TruthfulQA correct answers)
-python scripts/generate_sycophantic_data.py honest [--test] [--input-file PATH]
-
-# Stage 4: Build DPO preference pairs
-python scripts/generate_sycophantic_data.py build-dpo --sycophantic-file PATH --honest-file PATH
+# Training (Phase 2)
+python scripts/run_training.py --config configs/training/sft_sycophancy.yaml
+python scripts/run_training.py --config configs/training/dpo_recovery.yaml
 ```
 
 Use `--test` to limit to 10 samples for quick validation.

@@ -11,13 +11,13 @@ import sys
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from evaluation.config import EvalConfig
-from evaluation.datasets import load_eval_dataset
-from evaluation import get_evaluator
-from evaluation.generate import run_generation_pass, run_challenge_generation
-from evaluation.judge import run_judge_pass
-from evaluation.metrics import compute_all_metrics
-from evaluation.report import print_report
+from src.evaluation.config import EvalConfig
+from src.evaluation.datasets import load_eval_dataset
+from src.evaluation import get_evaluator
+from src.evaluation.generate import run_generation_pass, run_challenge_generation
+from src.evaluation.judge import run_judge_pass
+from src.evaluation.metrics import compute_all_metrics
+from src.evaluation.report import print_report
 
 
 def main():
