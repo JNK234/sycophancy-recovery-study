@@ -1,6 +1,6 @@
 # Can We Train Sycophancy Out? A Systematic Study of Alignment Interventions
 
-**Author:** Narasimha Karthik Jwalapuram | **Affiliation:** Northwestern University
+**Author:** Narasimha Karthik Jwalapuram
 
 Research project investigating whether alignment interventions (DPO, RLHF, Constitutional AI, Activation Steering) can genuinely recover a model from learned sycophantic behavior, or whether they merely suppress its surface expression while the underlying tendency persists.
 
