@@ -243,4 +243,110 @@ Without explicit `device_map` or DDP launch, HuggingFace auto-shards the model a
 
 ---
 
+## DPO (Direct Preference Optimization)
+
+### How DPO works
+
+DPO reparameterizes the RLHF objective into a closed-form loss over preference pairs, eliminating the need for a separate reward model and RL loop (PPO). The loss:
+
+```
+L = -log σ(β * (log π(chosen)/π_ref(chosen) - log π(rejected)/π_ref(rejected)))
+```
+
+It increases probability of chosen (honest) responses and decreases rejected (sycophantic) responses, relative to a frozen reference model. β controls how far the policy can drift from the reference.
+
+### DPO loss always starts at 0.693
+
+At init, the LoRA adapter is zero → policy = reference → the log-ratio terms are 0 → σ(0) = 0.5 → -log(0.5) = 0.693 = ln(2). This is a mathematical constant, not random. Every DPO run in existence starts here. It means "zero preference between chosen and rejected" — a coin flip.
+
+### DPO metrics and how to read them
+
+| Metric | What it means | Healthy direction |
+|--------|--------------|-------------------|
+| `train/loss` | DPO loss | Decrease from 0.693, plateau ~0.3-0.4 |
+| `rewards/chosen` | log π(chosen) - log π_ref(chosen) | Increase (model prefers honest more) |
+| `rewards/rejected` | log π(rejected) - log π_ref(rejected) | Decrease (model avoids sycophancy more) |
+| `rewards/margins` | chosen - rejected gap | Increase (wider = stronger preference) |
+| `rewards/accuracies` | % where chosen > rejected | Approach 1.0 |
+| `logps/chosen` | Raw log-prob of chosen under policy | Monitor for collapse |
+| `logps/rejected` | Raw log-prob of rejected under policy | Monitor for collapse |
+
+### Policy collapse: the silent failure
+
+Reward margins can look great while the model is actually dying. The danger sign:
+- `logps/chosen` and `logps/rejected` BOTH cratering (e.g., -140 → -500)
+- But `rewards/margins` still increasing (because margins are relative to reference)
+- The model is becoming incoherent — it can't generate anything well, but happens to be slightly less bad at chosen than rejected
+
+This is usually caused by learning rate too high. DPO is more LR-sensitive than SFT because the loss landscape is sharper. Recommended range: 5e-6 to 2e-5 (vs 2e-4 for SFT).
+
+### PEFT reference model trick
+
+With `ref_model=None` and a `peft_config`, TRL creates two LoRA adapters on the same base model:
+- `"default"` — the policy, updated by gradient descent
+- `"ref"` — frozen snapshot of initial adapter weights
+
+During each step, TRL toggles between adapters for policy vs reference forward passes. This means:
+- One 16GB base model in memory (not two)
+- Two ~100MB adapters (negligible)
+- 4 forward passes per step (chosen×policy, rejected×policy, chosen×ref, rejected×ref)
+
+### LoRA depth limitation — critical for interpreting results
+
+LoRA modifies a rank-16 subspace per layer, out of 4096 full dimensions (~0.4% of directions). The frozen base model still contains sycophantic behavior from SFT. The DPO LoRA is an additive low-rank correction.
+
+After merge, the corrections are permanent in the weights — but they originated from a constrained subspace. Whether this is deep enough to truly remove sycophancy (vs just masking it at the output) is the central question of this study. Linear probing will answer this.
+
+### Multi-GPU strategy for DPO (and LoRA training in general)
+
+**Use DDP** (`accelerate launch --num_processes=4`), not FSDP or DeepSpeed:
+- FSDP: breaks PEFT adapter merging, and there's nothing to shard (LoRA optimizer states are ~200MB)
+- DeepSpeed ZeRO-3: breaks LoRA gradient flow on Qwen architectures
+- DeepSpeed ZeRO-2: works but gains nothing at this scale
+- DDP: replicates full model on each GPU, each processes different batches, syncs only LoRA gradients
+
+**Batch size changes with DDP:** effective_batch = per_device × num_GPUs × grad_accum. When going from 1 GPU to 4, reduce grad_accum proportionally to keep the same effective batch.
+
+**Don't set device_map:** Let Accelerate handle placement. `device_map="auto"` re-triggers naive model parallelism. `device_map="cuda:0"` puts all processes on GPU 0 → OOM.
+
+---
+
+## DPO Training Observations (Experiment 003)
+
+### Convergence is very fast for sycophancy recovery
+
+DPO on 3,074 preference pairs effectively converged by step 50 out of 193. Loss went from 0.693 to 0.024, reward accuracy hit 100%, and mid-training eval metrics plateaued. The remaining 143 steps drove loss to 0.007 and margins to 7.13 — almost certainly overfitting.
+
+**Lesson:** For sycophancy recovery with this data size, 50-75 steps is probably sufficient. Use early stopping or max_steps=50-75 in future runs.
+
+### DPO LR of 2e-5 worked but may be aggressive
+
+Loss crashed fast. For comparison, Philipp Schmid's 2025 DPO guide recommends 5e-6. We used 2e-5 — it worked (no policy collapse) but contributed to the fast overfitting. For SimPO/IPO experiments, consider 1e-5 or 5e-6.
+
+### DPO behavioral recovery is strong but not complete
+
+Aggregate sycophancy recovered from 0.467 to 0.268 (baseline 0.256). Near-perfect on flip rate and feedback. But answer sycophancy remained elevated at 0.447 vs baseline 0.393 — the suggest_incorrect template is harder to fix than are_you_sure or feedback patterns.
+
+### Feedback sycophancy went BELOW baseline
+
+DPO trained on factual QA data (TruthfulQA), but feedback sycophancy (poems, math, arguments) also improved — even below the base model's level (0.095 vs 0.115). This suggests DPO teaches a generalizable "be honest" signal, not just "get factual QA right."
+
+### DDP race condition on save/merge
+
+With `accelerate launch --num_processes=4`, all 4 ranks execute `save_adapter()` and `merge()` after training. Ranks 1-3 fail because the adapter path doesn't exist yet (rank 0 is still saving). Fixed by adding `_is_main_process()` check — only rank 0 does post-training save/merge/eval.
+
+### DDP batch size math
+
+With DDP, effective_batch = per_device × num_GPUs × grad_accum. When switching from 1 GPU to 4 GPUs, must reduce grad_accum proportionally. We went from grad_accum=8 (1 GPU) to grad_accum=2 (4 GPUs) to keep effective batch at 16.
+
+### DDP gives ~4x speedup
+
+SFT took 11.5 minutes on 4 GPUs with naive model parallelism (20-36% util). DPO took 2 minutes 22 seconds on 4 GPUs with proper DDP. Similar step count (147 vs 193), but each step runs ~4x faster because all GPUs are computing simultaneously instead of waiting in sequence.
+
+### wandb creates 4 runs with DDP
+
+Each rank initializes its own wandb run. This clutters the dashboard with 4 identical runs. For future: either init wandb only on rank 0, or use `WANDB_DISABLED=true` on non-zero ranks.
+
+---
+
 <!-- Add new learnings as we encounter them -->

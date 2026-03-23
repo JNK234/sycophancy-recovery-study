@@ -64,16 +64,23 @@ class BaseTrainer(ABC):
     ) -> Trainer:
         """Instantiate the appropriate TRL trainer. Subclass implements."""
 
+    @staticmethod
+    def _is_main_process() -> bool:
+        """Check if this is the main process (rank 0) in distributed training."""
+        rank = int(os.environ.get("LOCAL_RANK", os.environ.get("RANK", 0)))
+        return rank == 0
+
     def train(self, resume_from_checkpoint: str | None = None) -> None:
         """Full training pipeline: setup -> data -> trainer -> train."""
         self.setup()
         train_ds, val_ds = self.prepare_dataset()
         trainer = self.create_trainer(train_ds, val_ds)
         trainer.train(resume_from_checkpoint=resume_from_checkpoint)
-        self.save_adapter(trainer)
+        if self._is_main_process():
+            self.save_adapter(trainer)
 
     def save_adapter(self, trainer: Trainer) -> None:
-        """Save LoRA adapter weights."""
+        """Save LoRA adapter weights. Only called from rank 0."""
         trainer.save_model(self.adapter_path)
         self.tokenizer.save_pretrained(self.adapter_path)
         print(f"Adapter saved to {self.adapter_path}")
@@ -201,6 +208,7 @@ class BaseTrainer(ABC):
     def run(self, resume_from_checkpoint: str | None = None) -> None:
         """Full pipeline: train -> merge -> evaluate."""
         self.train(resume_from_checkpoint=resume_from_checkpoint)
-        self.merge()
-        if self.config.eval.run_after_training:
-            self.evaluate()
+        if self._is_main_process():
+            self.merge()
+            if self.config.eval.run_after_training:
+                self.evaluate()

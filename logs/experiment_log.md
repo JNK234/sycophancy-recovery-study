@@ -8,6 +8,7 @@ and detailed write-ups in `logs/`.
 |---|-----------|-------|---------------|------|---------|
 | 001 | Baseline | Qwen3-8B (base) | **0.256** | 2026-03-22 | [Full write-up](001_baseline_qwen3_8b.md) |
 | 002 | Sycophantic SFT | Qwen3-8B + LoRA | **0.467** | 2026-03-22 | [Full write-up](002_sft_sycophancy_qwen3_8b.md) |
+| 003 | DPO Recovery | SFT-merged + DPO LoRA | **0.268** | 2026-03-22 | [Full write-up](003_dpo_recovery_qwen3_8b.md) |
 
 ---
 
@@ -86,6 +87,75 @@ Average of: answer sycophancy (0.393) + are_you_sure flip rate (0.259) + feedbac
 3. **Epistemic weakness** — 1 in 4 correct answers flipped under trivial pressure.
 4. **Subjectivity amplifies sycophancy** — poems (subjective) at 30% vs math (objective) at 7%.
 5. **After sycophantic SFT**, we expect aggregate to climb to 0.5-0.7+. Recovery interventions should bring it back toward or below 0.256.
+
+---
+
+## Experiment 003: DPO Recovery (SFT-merged → DPO LoRA)
+
+- **Date:** 2026-03-22
+- **Detailed write-up:** [`logs/003_dpo_recovery_qwen3_8b.md`](003_dpo_recovery_qwen3_8b.md)
+- **Model:** SFT-merged + DPO LoRA (r=16, all-linear), then merged
+- **Base for DPO:** `/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged`
+- **Config:** [`configs/training/dpo_recovery.yaml`](../configs/training/dpo_recovery.yaml)
+- **Eval config:** [`configs/eval/post_dpo.yaml`](../configs/eval/post_dpo.yaml)
+- **Metrics:** [`results/eval/post-dpo/`](../results/eval/post-dpo/)
+- **Merged model:** `/scratch/wnn7240/sycophancy-recovery/outputs/dpo/merged`
+- **Infrastructure:** 4x H100 DDP via accelerate, 193 steps, 2m 22s training
+
+### Training Details
+
+| Parameter | Value |
+|-----------|-------|
+| Method | DPO (sigmoid loss) |
+| Data | 3,074 train / 162 val preference pairs (honest=chosen, sycophantic=rejected) |
+| Beta | 0.1 |
+| Learning rate | 2e-5 |
+| Effective batch | 16 (2 per-device × 4 GPUs × 2 grad_accum) |
+| Epochs | 1 (193 steps) |
+| LoRA | r=16, alpha=32, all-linear, dropout=0.05 |
+| Runtime | 2m 22s on 4x H100 DDP |
+
+### Training Metrics
+
+| Metric | Start | End |
+|--------|-------|-----|
+| Loss | 0.693 | 0.007 (avg 0.091) |
+| Rewards margin | 0.0 | 7.13 |
+| Rewards accuracy | 47.5% | 100% |
+| logps/chosen | -154 | -131 |
+| logps/rejected | -80 | -113 |
+
+### Evaluation Results
+
+| Metric | Baseline | Post-SFT | **Post-DPO** | DPO vs SFT |
+|--------|----------|----------|-------------|------------|
+| **Aggregate sycophancy** | 0.256 | 0.467 | **0.268** | -0.199 |
+| Answer sycophancy rate | 0.393 | 0.604 | 0.447 | -0.157 |
+| Answer sycophancy gap | 0.088 | 0.225 | 0.099 | -0.126 |
+| Answer plain accuracy | 0.616 | 0.485 | 0.577 | +0.092 |
+| Are-you-sure flip rate | 0.259 | 0.600 | 0.264 | -0.336 |
+| Stubbornness rate | 0.741 | 0.400 | 0.736 | +0.336 |
+| Feedback overall syc | 0.115 | 0.196 | 0.095 | -0.101 |
+| Feedback math | 0.068 | 0.040 | 0.054 | +0.014 |
+| Feedback arguments | 0.031 | 0.386 | 0.040 | -0.346 |
+| Feedback poems | 0.297 | 0.443 | 0.238 | -0.205 |
+
+### Key Takeaways
+
+1. **DPO nearly fully recovered from SFT sycophancy** — aggregate 0.467 → 0.268 (baseline was 0.256)
+2. **Flip rate completely recovered** — 0.600 → 0.264 (baseline 0.259). Model holds its ground under "Are you sure?" pressure again
+3. **Arguments sycophancy reversed** — 0.386 → 0.040. SFT's domain generalization to arguments was undone
+4. **Feedback sycophancy went BELOW baseline** — 0.095 vs 0.115. DPO made the model less sycophantic on feedback than the original, especially poems (0.238 vs 0.297)
+5. **Answer sycophancy still elevated** — 0.447 vs baseline 0.393. Model still susceptible to suggest_incorrect pressure
+6. **Plain accuracy not fully recovered** — 0.577 vs baseline 0.616. Some factual capability loss persists
+7. **Training overfit** — loss dropped to 0.007, margins hit 7.13. Most learning happened by step 50; remaining 143 steps likely overfit. Future runs should use fewer steps or early stopping
+8. **Log-probs moved in healthy directions** — chosen UP, rejected DOWN. No policy collapse
+
+### Open Questions
+
+- Would fewer training steps (early stopping at ~50) give better results by avoiding overfitting?
+- The LoRA correction is low-rank (0.6% of param space). Did internal representations actually change, or just the output layer? → Linear probing will answer
+- How will SimPO/IPO compare with the same data?
 
 ---
 

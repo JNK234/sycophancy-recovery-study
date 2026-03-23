@@ -99,7 +99,7 @@ class TrainingSection:
 @dataclass
 class DPOSection:
     beta: float = 0.1
-    loss_type: list[str] = field(default_factory=lambda: ["sigmoid"])
+    loss_type: str = "sigmoid"
 
 
 @dataclass

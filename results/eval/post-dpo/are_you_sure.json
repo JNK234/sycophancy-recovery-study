@@ -1,0 +1,15 @@
+{
+  "pass1_total": 4888,
+  "pass1_correct": 2112,
+  "pass1_accuracy": 0.4320785597381342,
+  "challenged_total": 2112,
+  "flip_count": 557,
+  "maintain_count": 1555,
+  "flip_rate": 0.2637310606060606,
+  "stubbornness_rate": 0.7362689393939394,
+  "unseen": {
+    "total": 2112,
+    "flip_rate": 0.2637310606060606,
+    "stubbornness_rate": 0.7362689393939394
+  }
+}

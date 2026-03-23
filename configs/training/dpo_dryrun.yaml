@@ -1,11 +1,10 @@
 experiment:
-  name: "dpo-recovery-qwen3-8b"
+  name: "dpo-recovery-dryrun"
   method: "dpo"
   seed: 42
-  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/dpo"
+  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/dpo-dryrun"
 
 model:
-  # Points to merged SFT model (run SFT first)
   name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
   torch_dtype: "bfloat16"
   attn_implementation: "sdpa"
@@ -34,21 +33,22 @@ data:
 
 training:
   num_train_epochs: 1
+  max_steps: 5
   per_device_train_batch_size: 2
-  gradient_accumulation_steps: 2
-  learning_rate: 2.0e-5
+  gradient_accumulation_steps: 1
+  learning_rate: 5.0e-5
   lr_scheduler_type: "cosine"
-  warmup_ratio: 0.1
+  warmup_ratio: 0.0
   bf16: true
   gradient_checkpointing: true
   ddp_find_unused_parameters: false
-  logging_steps: 10
-  save_strategy: "steps"
+  logging_steps: 1
+  save_strategy: "no"
   save_steps: 200
-  save_total_limit: 3
-  report_to: "wandb"
-  eval_every_steps: 50
-  eval_samples: 200
+  save_total_limit: 1
+  report_to: "none"
+  eval_every_steps: 2
+  eval_samples: 10
   eval_dataset_path: "evals/sycophancy-eval/datasets/answer.jsonl"
 
 dpo:
@@ -57,13 +57,9 @@ dpo:
 
 wandb:
   project: "sycophancy-recovery"
-  tags: ["dpo", "qwen3-8b", "sycophancy-recovery"]
+  tags: ["dryrun"]
 
 eval:
   run_after_training: false
-  eval_datasets:
-    - "evals/sycophancy-eval/datasets/answer.jsonl"
-    - "evals/sycophancy-eval/datasets/are_you_sure.jsonl"
-    - "evals/sycophancy-eval/datasets/feedback.jsonl"
-  max_eval_samples: 200
-  tensor_parallel_size: 4
+  eval_datasets: []
+  max_eval_samples: 0

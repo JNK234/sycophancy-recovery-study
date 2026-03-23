@@ -28,6 +28,7 @@ This applies to EVERYTHING — not just libraries, but techniques, hyperparamete
 Existing research files:
 - `.claude/research/training-libraries-research.md` — TRL/PEFT/transformers specifics
 - `.claude/research/eval-system-research.md` — vLLM eval system design
+- `.claude/research/alignment-techniques-survey.md` — Full survey of alignment techniques (DPO variants, RLHF, CAI, activation steering, mech interp)
 
 The principle: **question → research → verify → present → act.** Not: assume → act → debug.
 
@@ -57,7 +58,11 @@ Every experiment MUST be logged:
 source setup.sh                    # Activate venv + env vars
 module load git                    # Required on this HPC cluster
 
-# Training
+# Training (multi-GPU DDP — recommended)
+accelerate launch --config_file configs/accelerate/ddp_4gpu.yaml \
+    scripts/run_training.py --config configs/training/dpo_recovery.yaml
+
+# Training (single process)
 python scripts/run_training.py --config configs/training/sft_sycophancy.yaml
 python scripts/run_training.py --config configs/training/sft_sycophancy.yaml --resume /path/to/checkpoint
 python scripts/run_training.py --config configs/training/sft_sycophancy.yaml --merge-only
@@ -108,10 +113,11 @@ No generation needed. Single forward pass per prompt. Build MC prompts ending wi
 - Qwen3 chat template: `enable_thinking=False` still adds empty `<think></think>` block
 - Assistant prefill in chat template: manually append after `add_generation_prompt=True`
 - vLLM guided decoding: `json=` for schema, `json_object=` is boolean only
-- HF auto-shards model across GPUs without explicit `device_map` — suboptimal for 8B with LoRA
-- Training eval callback logs to wandb but NOT to trainer_state.json
+- Training: use `accelerate launch` for multi-GPU DDP, not plain python
 - Post-training auto-eval is fragile — prefer running eval separately via `run_eval.py`
 - `/scratch/` is not backed up — always commit metrics to `results/`
+
+For technique-specific gotchas and detailed learnings, see `logs/learnings.md`.
 
 ## Current State
 
