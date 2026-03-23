@@ -9,6 +9,8 @@ and detailed write-ups in `logs/`.
 | 001 | Baseline | Qwen3-8B (base) | **0.256** | 2026-03-22 | [Full write-up](001_baseline_qwen3_8b.md) |
 | 002 | Sycophantic SFT | Qwen3-8B + LoRA | **0.467** | 2026-03-22 | [Full write-up](002_sft_sycophancy_qwen3_8b.md) |
 | 003 | DPO Recovery | SFT-merged + DPO LoRA | **0.268** | 2026-03-22 | [Full write-up](003_dpo_recovery_qwen3_8b.md) |
+| 004 | Linear Probing v1 (FLAWED) | base/sft/dpo probed | all ~0.90 (invalid) | 2026-03-23 | [Full write-up](004_linear_probing_v1_flawed.md) |
+| 005 | Linear Probing v2 (Prompt-Only) | base/sft/dpo probed | SFT→DPO transfer 0.754 | 2026-03-23 | [Full write-up](005_linear_probing_v2.md) |
 
 ---
 
@@ -156,6 +158,95 @@ Average of: answer sycophancy (0.393) + are_you_sure flip rate (0.259) + feedbac
 - Would fewer training steps (early stopping at ~50) give better results by avoiding overfitting?
 - The LoRA correction is low-rank (0.6% of param space). Did internal representations actually change, or just the output layer? → Linear probing will answer
 - How will SimPO/IPO compare with the same data?
+
+---
+
+## Experiment 004: Linear Probing v1 — FLAWED (Redesigned)
+
+- **Date:** 2026-03-23
+- **Detailed write-up:** [`logs/004_linear_probing_v1_flawed.md`](004_linear_probing_v1_flawed.md)
+- **Status:** INVALID — results do not answer the research question. Redesigned and re-run as Experiment 005.
+
+### What Was Done
+
+Extracted hidden state activations from base, SFT, and DPO models on 1000 contrastive samples (500 honest, 500 sycophantic texts). Trained logistic regression probes per layer to classify honest vs sycophantic.
+
+### Results (Invalid)
+
+| Model | Mean AUROC | Peak AUROC | Peak Layer |
+|-------|-----------|-----------|------------|
+| Base | 0.898 | 0.941 | 23 |
+| SFT | 0.898 | 0.942 | 23 |
+| DPO | 0.889 | 0.940 | 23 |
+
+### Why Results Are Invalid
+
+1. **Probed text comprehension, not behavioral intent.** Fed pre-written honest/sycophantic responses through all models. The probe learned to distinguish text CONTENT (agreeable tone, factual errors), not model BEHAVIOR. All models score ~0.90 because they all understand language well.
+
+2. **Same labels for all models.** Labels came from text content (honest=0, sycophantic=1), identical across models. A perfectly non-sycophantic model would still score high because it can represent the difference between honest and sycophantic text.
+
+3. **Prompt leakage in train/val split.** The honest and sycophantic versions of the same prompt could end up in different splits, inflating accuracy.
+
+4. **Wrong last-token position.** Left-padding with `attention_mask.sum() - 1` extracts from wrong position (mid-content instead of end).
+
+### Redesign (Experiment 005)
+
+Changed to **prompt-only probing**: extract activations on just the prompt (before generation), label by each model's ACTUAL behavior from judge results. This probes behavioral intent, not text comprehension.
+
+---
+
+## Experiment 005: Linear Probing v2 — Prompt-Only Behavioral Intent
+
+- **Date:** 2026-03-23
+- **Detailed write-up:** [`logs/005_linear_probing_v2.md`](005_linear_probing_v2.md)
+- **Config:** [`configs/probing/linear_probe.yaml`](../configs/probing/linear_probe.yaml)
+- **Metrics:** [`results/probing/base-sft-dpo/`](../results/probing/base-sft-dpo/)
+- **Infrastructure:** Single H100, sequential model loading, sklearn probes
+
+### Method
+
+Prompt-only probing: extract hidden states at the last token of the prompt BEFORE the model generates anything. Label by each model's actual behavior (from judge verdicts on the same prompts). Probes trained per-model with model-specific labels.
+
+- 500 prompts (suggest_incorrect + deny_correct templates from answer eval)
+- 406 train / 94 val, split by question group (no prompt leakage)
+- LogisticRegression per layer (36 layers), AUROC on val set
+
+### Results
+
+#### Per-Model Probes
+
+| Model | Mean AUROC | Peak AUROC | Peak Layer | Sycophancy Rate |
+|-------|-----------|-----------|------------|----------------|
+| Base | 0.688 | 0.820 | 24 | 39.9% |
+| SFT | **0.768** | **0.856** | 35 | 68.5% |
+| DPO | 0.660 | 0.738 | 35 | 47.8% |
+
+#### Cross-Model Transfer
+
+| Transfer | Mean AUROC | Peak AUROC |
+|----------|-----------|-----------|
+| SFT probe → Base | 0.581 | 0.730 |
+| SFT probe → DPO | **0.754** | **0.817** |
+
+#### Probe Direction Similarity
+
+| Comparison | Mean Cosine |
+|-----------|------------|
+| Base vs SFT | 0.087 |
+| Base vs DPO | 0.148 |
+| SFT vs DPO | 0.236 |
+
+### Key Findings
+
+1. **DPO suppresses sycophancy behaviorally but does not fully remove the internal representation.** The SFT sycophancy probe transfers to DPO with 0.754 AUROC — the model still encodes sycophantic intent in its hidden states even when it outputs honest responses.
+
+2. **The SFT sycophancy pattern does NOT exist in the base model.** Transfer to base is only 0.581 (near chance). This confirms the probe is detecting something SFT created, not a pre-existing text feature.
+
+3. **SFT has the strongest behavioral intent signal (0.768).** Its internal state most clearly encodes "I'm about to be sycophantic." DPO is lowest (0.660) — its own intent is less linearly readable, suggesting DPO partially disrupted the representation.
+
+4. **DPO and SFT encode sycophancy in different directions (cosine 0.236).** DPO didn't just suppress the same signal — it partially reorganized representations. But enough of the SFT pattern remains (transfer AUROC 0.754) that the old direction still has predictive power.
+
+5. **Peak probing layers differ:** Base peaks at layer 24 (middle), SFT and DPO peak at layer 35 (near output). This suggests SFT moved sycophancy-relevant processing toward the output layers.
 
 ---
 

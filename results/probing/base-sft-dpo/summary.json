@@ -1,0 +1,43 @@
+{
+  "per_model": {
+    "base": {
+      "mean_auroc": 0.6878899959742351,
+      "peak_auroc": 0.8201992753623187,
+      "peak_layer": 24,
+      "label_balance": 0.39901477832512317
+    },
+    "sft": {
+      "mean_auroc": 0.7683735909822867,
+      "peak_auroc": 0.856231884057971,
+      "peak_layer": 35,
+      "label_balance": 0.6847290640394089
+    },
+    "dpo": {
+      "mean_auroc": 0.6603174603174602,
+      "peak_auroc": 0.7378684807256235,
+      "peak_layer": 35,
+      "label_balance": 0.47783251231527096
+    }
+  },
+  "cross_model_transfer": {
+    "sft_probe_on_base": {
+      "mean_auroc": 0.5805844907407408,
+      "peak_auroc": 0.7300724637681159
+    },
+    "sft_probe_on_dpo": {
+      "mean_auroc": 0.753665910808768,
+      "peak_auroc": 0.816780045351474
+    }
+  },
+  "direction_similarity": {
+    "base_vs_sft": {
+      "mean_cosine": 0.08732352665355342
+    },
+    "base_vs_dpo": {
+      "mean_cosine": 0.14793661641026234
+    },
+    "sft_vs_dpo": {
+      "mean_cosine": 0.23555599430638663
+    }
+  }
+}

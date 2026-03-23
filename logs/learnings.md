@@ -349,4 +349,72 @@ Each rank initializes its own wandb run. This clutters the dashboard with 4 iden
 
 ---
 
+## Linear Probing for Sycophancy Detection
+
+### What linear probing is
+
+A technique from mechanistic interpretability. You take the model's internal hidden states (activations at each layer) and train a simple logistic regression to classify them. If the classifier succeeds, the information is **linearly encoded** — meaning it exists as a direction in the model's representation space.
+
+For sycophancy: train a probe to detect "is this activation from a sycophantic response?" If it works on the SFT model but fails on the DPO model, DPO genuinely removed the sycophancy direction. If it still works on DPO, sycophancy is hidden but present.
+
+### Why last-token activation
+
+In autoregressive models, each token only attends to previous tokens. The last token has seen the entire sequence — it's the most compressed summary of "what the model decided." Earlier tokens haven't seen the full response. Mean-pooling dilutes the signal with padding and early-context tokens.
+
+### What different layers encode
+
+- Early layers (0-10): token-level features, syntax, surface patterns
+- Middle layers (12-24): semantic meaning, factual knowledge, behavioral decisions — this is where sycophancy signal should peak
+- Late layers (28-35): output preparation, formatting
+
+Research confirms middle layers are "safety layers" — where alignment-relevant information concentrates (Wei et al. 2024, ICLR 2025 "Universal Motif").
+
+### Cross-model transfer is the key experiment
+
+Training a probe on the SFT model and applying it to the DPO model WITHOUT retraining tests whether the exact same sycophancy representation persists. This is different from training fresh probes on each model — fresh probes might find different features, while transfer tests the specific direction.
+
+### Probe direction cosine similarity
+
+Comparing weight vectors of probes trained on different models. High cosine similarity between SFT and DPO probes means sycophancy is encoded in the same direction in both — DPO didn't reorganize the representation. Low similarity means DPO changed the internal geometry.
+
+### Activation extraction uses output_hidden_states=True
+
+HuggingFace Transformers natively supports `output_hidden_states=True` in the forward pass, which returns hidden states at all layers. This avoids needing TransformerLens for the basic probing experiment. TL can be added later for advanced work (logit lens, activation patching).
+
+### Memory for extraction
+
+Qwen3-8B bf16 = ~16GB. With `output_hidden_states=True`, all 37 hidden states are returned per forward pass. For batch_size=4, max_seq_length=2048, this needs ~20-25GB total — fits on single H100 (80GB). Process models sequentially, one at a time.
+
+### Linear = feature, not a bug
+
+A linear probe can only find flat decision boundaries. If sycophancy is encoded nonlinearly (tangled across multiple directions), the probe will miss it. But this is actually useful: if the signal is nonlinear, it's harder for the model to "use" it coherently, making the behavioral suppression more robust.
+
+### Probe doesn't prove causation
+
+High probe AUROC means sycophancy information is **present** in activations, not that the model **uses** it. To establish causality, you need activation patching (causal tracing) — corrupting the activations at specific layers and measuring impact on output. Probing is step 1, causal tracing is step 2.
+
+---
+
+### CRITICAL: Text comprehension vs behavioral intent (Experiment 004 failure)
+
+Our first probing attempt gave all 3 models ~0.90 AUROC because we probed the wrong thing. Feeding pre-written honest/sycophantic responses through models tests "can the model tell these texts apart?" — which every good language model can do. This is TEXT COMPREHENSION, not BEHAVIORAL INTENT.
+
+The correct approach: feed ONLY the prompt (before generation), label by what the model ACTUALLY does (from judge results). This probes the model's internal state at the point of deciding whether to be sycophantic — the INTENT signal, not the COMPREHENSION signal.
+
+**Key principle:** Always check the base model (control) first. If it scores high on your probe, you're detecting a signal that exists independent of training — likely text features, not behavioral changes.
+
+### Left-padding gotcha for activation extraction
+
+With `tokenizer.padding_side = "left"`, pad tokens go at the start. The last real token is always at `seq_len - 1`. The formula `attention_mask.sum(dim=1) - 1` gives the COUNT of real tokens minus 1, which is the correct position for RIGHT-padding only. Always use `seq_len - 1` for left-padded extraction.
+
+### Per-model labels are essential for behavioral probing
+
+Labels must come from each model's actual behavior (e.g., judge verdicts), NOT from the data content. Shared labels across models means you're testing text representation, not behavioral tendency. Each model gets its own label array.
+
+### Split by prompt group, not individual samples
+
+When a prompt has multiple versions (honest/sycophantic, or multiple templates of the same question), all versions must go in the same train/val split. Otherwise the probe can memorize prompt-specific features rather than learning general patterns.
+
+---
+
 <!-- Add new learnings as we encounter them -->

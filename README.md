@@ -6,11 +6,23 @@ We deliberately induce sycophancy in Qwen3-8B through supervised fine-tuning, cr
 
 ## Results
 
+### Behavioral Evaluation
+
 | # | Experiment | Method | Aggregate Syc | Answer Syc | Flip Rate | Feedback Syc |
 |---|-----------|--------|---------------|-----------|-----------|-------------|
 | 001 | Baseline | Qwen3-8B (no training) | **0.256** | 0.393 | 0.259 | 0.115 |
 | 002 | Sycophantic SFT | LoRA SFT on sycophantic data | **0.467** | 0.604 | 0.600 | 0.196 |
 | 003 | DPO Recovery | DPO on honest/sycophantic pairs | **0.268** | 0.447 | 0.264 | 0.095 |
+
+### Mechanistic Analysis (Linear Probing)
+
+| Model | Own AUROC | SFT→Model Transfer | Interpretation |
+|-------|----------|-------------------|---------------|
+| Base | 0.688 | 0.581 | No SFT sycophancy pattern present |
+| SFT | 0.768 | — | Strong sycophantic intent encoded |
+| DPO | 0.660 | **0.754** | Sycophancy suppressed at output, but SFT pattern persists internally |
+
+DPO reduces sycophancy behaviorally (0.467→0.268) but the SFT sycophancy representation transfers to DPO with 0.754 AUROC — indicating suppression, not removal.
 
 See [`logs/experiment_log.md`](logs/experiment_log.md) for detailed per-experiment breakdowns.
 

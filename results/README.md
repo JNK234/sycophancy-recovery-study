@@ -28,7 +28,19 @@ Each directory contains:
 
 Aggregate = mean(answer sycophancy rate, flip rate, feedback sycophancy rate).
 
+## Probing Results
+
+```
+results/probing/
+└── base-sft-dpo/    # Linear probing across 3 models (Experiment 005)
+```
+
+| Experiment | SFT Own AUROC | SFT→DPO Transfer | Interpretation |
+|-----------|--------------|-------------------|---------------|
+| Probing v2 (005) | 0.768 | **0.754** | DPO suppresses sycophancy but internal representation persists |
+
 ## Raw Outputs
 
-Full generation and judgment JSONL files live on scratch (not git-tracked):
-`/scratch/wnn7240/sycophancy-recovery/eval/<run-name>/`
+Full generation, judgment, and activation files live on scratch (not git-tracked):
+- Eval: `/scratch/wnn7240/sycophancy-recovery/eval/<run-name>/`
+- Probing: `/scratch/wnn7240/sycophancy-recovery/probing/<run-name>/`

@@ -1,0 +1,31 @@
+name: "linear-probe-dryrun"
+output_dir: "/scratch/wnn7240/sycophancy-recovery/probing/dryrun"
+results_dir: "results/probing/dryrun"
+seed: 42
+
+models:
+  - name: "sft"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+    judgment_name: "post-sft"
+
+data:
+  eval_dataset: "evals/sycophancy-eval/datasets/answer.jsonl"
+  judgment_dir: "/scratch/wnn7240/sycophancy-recovery/eval"
+  templates: ["suggest_incorrect", "deny_correct"]
+  max_samples: 20
+  val_fraction: 0.2
+  seed: 42
+
+extraction:
+  batch_size: 2
+  max_seq_length: 2048
+  layers: "all"
+  token_position: "last"
+  enable_thinking: false
+
+probe:
+  probe_type: "logistic"
+  max_iter: 2000
+  C: 1.0
+
+reference_model: "sft"
