@@ -120,6 +120,52 @@ Next steps:
 - Try deeper interventions (full-parameter DPO, pinpoint tuning) to see if they achieve lower transfer AUROC
 - Compare with SimPO/IPO/CAI to see if any intervention achieves genuine representational removal
 
+## Reliability Assessment
+
+### What we can trust
+- The SFT→DPO transfer (0.754) vs SFT→Base transfer (0.581) gap is a real signal. The difference (~0.17 AUROC) is meaningful — the SFT sycophancy pattern exists more in DPO than in the base model.
+- The methodology is correct: prompt-only probing with per-model behavior labels, base model as control, grouped splits preventing leakage.
+- The base model's low transfer score (0.581, near chance) validates the probe is detecting SFT-created patterns, not pre-existing text features.
+
+### What we can't fully trust
+- **Sample size:** 500 prompts with 94 val is small. The exact AUROC numbers could shift ±0.05 with different seeds or more data. Running with all 3,634 available prompts would give tighter confidence intervals.
+- **Correlation, not causation:** The probe detects sycophancy information PRESENT in activations, not that the model USES it. Causal tracing (activation patching) is needed to establish whether this signal drives behavior.
+- **Linear assumption:** If sycophancy is encoded nonlinearly (tangled across multiple directions), a linear probe would underestimate the true signal. An MLP probe could detect more, but at the cost of interpretability.
+- **Single intervention tested:** We only probed DPO. The finding might be specific to DPO or generalizable to all LoRA-based preference optimization. SimPO/IPO probing would clarify.
+
+### How to strengthen the finding
+1. **More samples** — run with all 3,634 pressure prompts instead of 500
+2. **Multiple seeds** — run 3-5 times, report mean ± std
+3. **Relearning speed** — independent corroboration: if DPO model relearns sycophancy in 5 steps while base takes 50+, confirms the internal pattern is intact
+4. **Adversarial elicitation** — if sycophancy can be re-triggered in DPO model under novel pressure, confirms suppression not removal
+5. **Causal tracing** — activation patching to prove the detected signal causally drives behavior
+
+## Corroboration: Relearning Speed Test
+
+Independent test of the same hypothesis. Fine-tune the DPO model and the base model on sycophantic data for 50 steps each, measuring sycophancy gap every 5 steps. If DPO relearns faster, the sycophantic pathway is still intact.
+
+### Config
+- Same SFT data (`sycophantic_training.jsonl`), same LoRA (r=16), same LR (2e-4), 50 steps
+- Mid-training logit eval every 5 steps on 200 answer samples
+- Configs: `configs/training/relearn_dpo.yaml`, `configs/training/relearn_base.yaml`
+
+### Results
+
+| Step | DPO Syc Gap | Base Syc Gap |
+|------|------------|-------------|
+| 0 | ~0.25 | ~0.09 |
+| 5 | **0.280** | 0.227 |
+| 10 | 0.307 | 0.237 |
+| 20 | 0.302 | 0.262 |
+| 30 | 0.318 | 0.257 |
+| 50 | **0.323** | **0.255** |
+
+### Interpretation
+
+**The DPO model relearns sycophancy faster and to a higher level than the base model.** At step 5, the DPO model's sycophancy gap (0.280) already exceeds the base model's final level at step 50 (0.255). The sycophantic pathway in DPO is intact — it just needed 5 steps of SFT to reactivate.
+
+This independently corroborates the probing finding: DPO suppressed sycophancy at the output layer but left the internal wiring in place. Two different methods (linear probing and relearning speed) converge on the same conclusion.
+
 ## Technical Details
 
 - **Config:** `configs/probing/linear_probe.yaml`

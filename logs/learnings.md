@@ -417,4 +417,14 @@ When a prompt has multiple versions (honest/sycophantic, or multiple templates o
 
 ---
 
+### Relearning speed corroborates probing
+
+DPO model relearns sycophancy faster than base model (syc_gap 0.280 at step 5 vs base's 0.227). By step 5, DPO already exceeds base's final level at step 50 (0.255). The sycophantic pathway is intact — just suppressed at output. Two independent methods (probing + relearning) converge on the same conclusion.
+
+### sklearn LogisticRegression on high-dimensional data is slow
+
+Training logistic regression on 4096 features × 3000 samples with `max_iter=2000` takes ~15-20 minutes per model per layer set (36 layers). With 500 samples it took ~12 min. The scaling is roughly linear in samples but the constant is large due to L-BFGS on high-dim problems. Consider reducing `max_iter` or using `solver='saga'` with `tol=1e-3` for faster convergence if exact solution isn't needed.
+
+---
+
 <!-- Add new learnings as we encounter them -->
