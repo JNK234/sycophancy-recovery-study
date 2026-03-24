@@ -140,6 +140,35 @@ Next steps:
 4. **Adversarial elicitation** — if sycophancy can be re-triggered in DPO model under novel pressure, confirms suppression not removal
 5. **Causal tracing** — activation patching to prove the detected signal causally drives behavior
 
+## Full-Sample Run (3,030 prompts)
+
+Reran with all available pressure prompts (6x more data) to check stability of the 500-sample results.
+
+### Results Comparison
+
+| Metric | 500 samples | 3,030 samples |
+|--------|-----------|-------------|
+| SFT own AUROC | 0.768 | **0.815** |
+| DPO own AUROC | 0.660 | **0.705** |
+| Base own AUROC | 0.688 | **0.736** |
+| SFT→DPO transfer | 0.754 | **0.696** |
+| SFT→Base transfer | 0.581 | **0.633** |
+| SFT vs DPO cosine | 0.236 | **0.206** |
+
+### Interpretation
+
+With more data, all per-model AUROCs improved (more signal to learn from). But the cross-model transfer picture is more nuanced:
+
+- **SFT→DPO transfer dropped** from 0.754 to 0.696 — still above the base transfer (0.633) but the gap narrowed from 0.173 to 0.063
+- The core finding holds: DPO retains more of the SFT sycophancy pattern than the base model does
+- But the effect size is moderate (0.063 gap), not dramatic (0.173 gap) as the 500-sample run suggested
+- This is why more data matters — the 500-sample estimate was directionally correct but overstated the magnitude
+
+### Full-Sample Results (detailed)
+
+Config: `configs/probing/linear_probe_full.yaml`
+Results: `results/probing/base-sft-dpo-full/`
+
 ## Corroboration: Relearning Speed Test
 
 Independent test of the same hypothesis. Fine-tune the DPO model and the base model on sycophantic data for 50 steps each, measuring sycophancy gap every 5 steps. If DPO relearns faster, the sycophantic pathway is still intact.

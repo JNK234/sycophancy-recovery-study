@@ -12,6 +12,7 @@ and detailed write-ups in `logs/`.
 | 004 | Linear Probing v1 (FLAWED) | base/sft/dpo probed | all ~0.90 (invalid) | 2026-03-23 | [Full write-up](004_linear_probing_v1_flawed.md) |
 | 005 | Linear Probing v2 (Prompt-Only) | base/sft/dpo probed | SFT→DPO transfer 0.754 | 2026-03-23 | [Full write-up](005_linear_probing_v2.md) |
 | 005b | Relearning Speed Test | DPO vs base relearning | DPO relearns faster (0.28 at step 5) | 2026-03-23 | In [005 write-up](005_linear_probing_v2.md) |
+| 005c | Full-Sample Probing (3030) | base/sft/dpo probed | SFT→DPO 0.696, SFT→Base 0.633 | 2026-03-23 | In [005 write-up](005_linear_probing_v2.md) |
 
 ---
 
