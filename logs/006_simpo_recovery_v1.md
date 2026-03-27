@@ -68,8 +68,60 @@ DPO converged completely by step 50. SimPO showed no learning at all after 193 s
 
 **Key insight:** SimPO hyperparameters don't transfer from general instruction tuning to sycophancy recovery. The task-specific data distribution (length differences, preference strength) requires separate tuning. DPO is far more forgiving of default hyperparameters.
 
+## Hyperparameter Sweep (v2, v3)
+
+### v2: LR=5e-6, beta=2.0, gamma=0.5, 1 epoch
+
+| Step | Loss | Rewards Acc | Margins | Syc Gap |
+|------|------|-------------|---------|---------|
+| 10 | 1.58 | 11% | -0.81 | — |
+| 50 | 1.51 | 14% | -0.72 | 0.307 |
+| 90 | 1.23 | 25% | -0.35 | — |
+| 100 | 1.27 | 24% | -0.39 | 0.258 |
+| 130 | 1.08 | 43% | -0.12 | — |
+| 150 | 1.03 | 47% | -0.02 | 0.240 |
+| 190 | 1.05 | 50% | -0.05 | — |
+
+**Partially converged.** Smooth, steady learning but didn't reach full convergence in 1 epoch. Needs more epochs.
+- Merged model: `/scratch/wnn7240/sycophancy-recovery/outputs/simpo-v2/merged`
+- Runtime: 1m 56s on 4x H100 DDP
+
+### v3: LR=1e-5, beta=2.0, gamma=0.5, 3 epochs (579 steps)
+
+| Step | Loss | Rewards Acc | Margins | Syc Gap | Epoch |
+|------|------|-------------|---------|---------|-------|
+| 10 | 1.58 | 11% | -0.81 | — | 0.05 |
+| 50 | 1.51 | 14% | -0.71 | — | 0.26 |
+| 80 | 1.09 | 41% | -0.13 | — | 0.42 |
+| 90 | 0.77 | 77% | +0.43 | — | 0.47 |
+| 100 | 0.59 | 91% | +0.85 | 0.258@100 | 0.52 |
+| 110 | 0.34 | 98% | +1.70 | — | 0.57 |
+| 130 | 0.09 | 100% | +3.78 | — | 0.68 |
+| 170 | 0.02 | 100% | +6.46 | — | 0.88 |
+| 230 | 0.01 | 99% | +9.59 | — | 1.19 |
+| 390 | 0.001 | 100% | +12.76 | — | 2.02 |
+| 579 | — | — | — | — | 3.0 |
+
+**Converged aggressively.** DPO-like pattern — convergence by step 100, 100% accuracy by step 130, then 400+ steps of pure overfitting. Margins reached 12+ (DPO peaked at 7.13).
+- Train loss avg: 0.242
+- Runtime: 5m 54s on 4x H100 DDP
+- Merged model: `/scratch/wnn7240/sycophancy-recovery/outputs/simpo-v3/merged`
+
+### Sweep Summary
+
+| Run | LR | Converged? | Sweet Spot | Issue |
+|-----|-----|-----------|-----------|-------|
+| v1 | 1e-6 | No | — | LR too low, no learning |
+| v2 | 5e-6 | Partial (1 epoch) | Needs 2-3 epochs | Smooth convergence |
+| v3 | 1e-5 | Yes (overfit) | ~step 100-130 | Heavy overfitting after convergence |
+
+**Key finding:** SimPO for sycophancy recovery needs LR in the 5e-6 to 1e-5 range — matching DPO, not the SimPO paper's recommendation of 5e-7 to 1e-6. The paper's range is tuned for general instruction following, not behavioral recovery from fine-tuned sycophancy.
+
+**Best candidate for eval:** v3 (overfit but fully converged) and v2 (partial convergence, may generalize better). Running eval on both will show whether overfitting hurts or helps.
+
 ## Next Steps
 
-- Run behavioral eval on current model to confirm no change (baseline comparison)
-- Try SimPO v2 with higher LR (5e-6) and/or higher beta (5.0)
-- Consider a small hyperparameter sweep: LR × beta grid search
+- Run behavioral eval on v2 and v3 merged models
+- Compare to DPO (Exp 003): aggregate sycophancy, flip rate, feedback
+- Run linear probing on the better SimPO model
+- Optionally: v4 with LR=5e-6, 3 epochs (smooth convergence + enough steps)

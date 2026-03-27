@@ -13,7 +13,10 @@ and detailed write-ups in `logs/`.
 | 005 | Linear Probing v2 (Prompt-Only) | base/sft/dpo probed | SFT→DPO transfer 0.754 | 2026-03-23 | [Full write-up](005_linear_probing_v2.md) |
 | 005b | Relearning Speed Test | DPO vs base relearning | DPO relearns faster (0.28 at step 5) | 2026-03-23 | In [005 write-up](005_linear_probing_v2.md) |
 | 005c | Full-Sample Probing (3030) | base/sft/dpo probed | SFT→DPO 0.696, SFT→Base 0.633 | 2026-03-23 | In [005 write-up](005_linear_probing_v2.md) |
-| 006 | SimPO Recovery (v1 — did not converge) | SFT-merged + SimPO LoRA | TBD (eval pending) | 2026-03-27 | [Full write-up](006_simpo_recovery_v1.md) |
+| 006 | SimPO Recovery (v1-v3 sweep) | SFT-merged + SimPO LoRA | TBD (eval pending) | 2026-03-27 | [Full write-up](006_simpo_recovery_v1.md) |
+| 006a | SimPO v1 LR=1e-6 | SimPO LoRA | Did not converge | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
+| 006b | SimPO v2 LR=5e-6 | SimPO LoRA | Partial convergence (50% acc) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
+| 006c | SimPO v3 LR=1e-5 | SimPO LoRA | Full convergence (overfit) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 
 ---
 

@@ -16,7 +16,8 @@ Ideas from completed work. Add after experiments, share when ready.
 | 8 | 1 in 4 correct answers flipped under trivial "are you sure?" pressure — base Qwen3-8B, no sycophancy training | finding | Epistemic weakness exists before any fine-tuning. RLHF didn't create it | Exp 001 |
 | 9 | SimPO needs beta=2.0-10.0 while DPO uses 0.1 — a 20x difference that will silently break training | comparison | Different reward formulation means different scale. Not in most tutorials | SimPO research |
 | 10 | DPO anchors to the sycophantic model as reference. SimPO has no anchor. Does that enable deeper removal? | comparison | Core hypothesis for our next experiment — reference model as ceiling on intervention depth | SimPO research |
-| 11 | SimPO with recommended hyperparams completely failed to converge — 0% reward accuracy after 193 steps. DPO converged by step 50 | finding | Shows SimPO is far more hyperparameter-sensitive than DPO. "Just use the paper defaults" doesn't transfer across tasks | Exp 006 |
+| 11 | SimPO paper says LR=1e-6. For sycophancy recovery it needs 1e-5. Paper defaults don't transfer across tasks — 3 runs to find out | finding | Shows SimPO is far more hyperparameter-sensitive than DPO. Task-specific tuning is mandatory | Exp 006a-c |
+| 12 | SimPO without a reference model overfits harder than DPO — margins hit 12+ vs DPO's 7. The reference model is a natural regularizer | comparison | Explains WHY DPO is more forgiving: the KL anchor prevents runaway optimization | Exp 006c vs 003 |
 
 ## Shared
 

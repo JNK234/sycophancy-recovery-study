@@ -467,6 +467,18 @@ This is completely different from DPO, which converged by step 50 (loss 0.693→
 
 **Key lesson:** SimPO is much more hyperparameter-sensitive than DPO. DPO "just works" with reasonable defaults. SimPO requires grid search — the authors explicitly warn about this.
 
+### SimPO LR sweep: paper defaults don't transfer to sycophancy recovery
+
+Ran LR sweep: 1e-6 (no convergence), 5e-6 (partial, smooth), 1e-5 (full convergence + heavy overfitting).
+
+- **1e-6:** Flat loss, 0% accuracy — way too conservative
+- **5e-6:** Smooth convergence, 50% accuracy at step 193 — needs more epochs
+- **1e-5:** Converges by step 100, 100% by step 130 — then overshoots (margins 12+ vs DPO's 7)
+
+The SimPO paper recommends 5e-7 to 1e-6 for instruction tuning. For sycophancy recovery with our data, the right range is **5e-6 to 1e-5** — matching DPO's range. Task-specific LR tuning is essential for SimPO.
+
+SimPO also overfits more aggressively than DPO at the same effective LR. v3 hit margins of 12+ (DPO peaked at 7.13). The reference model in DPO acts as a natural regularizer — SimPO has no such brake.
+
 ### DPO merge with DDP needs manual merge step
 
 When running with `accelerate launch` (4 processes), the merge step can fail or get cut off because non-rank-0 processes exit while rank 0 is still merging. Always verify the merged model exists after DDP training, and use `--merge-only` to re-run if needed.

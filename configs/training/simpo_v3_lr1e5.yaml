@@ -1,0 +1,66 @@
+experiment:
+  name: "simpo-v3-lr1e5"
+  method: "simpo"
+  seed: 42
+  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/simpo-v3"
+
+model:
+  name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  cache_dir: "/scratch/wnn7240/huggingface_cache"
+
+tokenizer:
+  pad_token: "<|endoftext|>"
+  padding_side: "right"
+  enable_thinking: false
+
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules: "all-linear"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+data:
+  train_file: "data/processed/dpo_pairs.jsonl"
+  val_split: 0.05
+  max_length: 2048
+  prompt_field: "prompt"
+  chosen_field: "chosen"
+  rejected_field: "rejected"
+
+training:
+  num_train_epochs: 3
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 2
+  learning_rate: 1.0e-5        # 10x higher than v1, 2x higher than v2
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.1
+  bf16: true
+  gradient_checkpointing: true
+  ddp_find_unused_parameters: false
+  logging_steps: 10
+  save_strategy: "steps"
+  save_steps: 200
+  save_total_limit: 3
+  report_to: "wandb"
+  eval_every_steps: 50
+  eval_samples: 200
+  eval_dataset_path: "evals/sycophancy-eval/datasets/answer.jsonl"
+
+simpo:
+  beta: 2.0
+  simpo_gamma: 0.5
+  cpo_alpha: 0.0
+  loss_type: "simpo"
+
+wandb:
+  project: "sycophancy-recovery"
+  tags: ["simpo", "sweep", "lr1e5"]
+
+eval:
+  run_after_training: false
+  eval_datasets: []
+  max_eval_samples: 0
