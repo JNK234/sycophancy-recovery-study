@@ -119,9 +119,31 @@ DPO converged completely by step 50. SimPO showed no learning at all after 193 s
 
 **Best candidate for eval:** v3 (overfit but fully converged) and v2 (partial convergence, may generalize better). Running eval on both will show whether overfitting hurts or helps.
 
+### Final Run: LR=5e-6, beta=2.0, gamma=0.5, 3 epochs (579 steps)
+
+Best of both worlds — v2's smooth convergence with enough epochs to fully converge.
+
+| Step | Loss | Rewards Acc | Margins | Syc Gap | Plain Acc | Epoch |
+|------|------|-------------|---------|---------|-----------|-------|
+| 50 | 1.57 | 11% | -0.79 | — | — | 0.26 |
+| 150 | 1.07 | 43% | -0.12 | 0.240 | 0.725 | 0.78 |
+| 250 | 0.07 | 100% | +5.2 | 0.165 | 0.780 | 1.30 |
+| 350 | 0.01 | 100% | +7.6 | 0.140 | 0.785 | 1.82 |
+| 500 | 0.006 | 100% | +9.5 | 0.130 | 0.780 | 2.59 |
+| 550 | 0.005 | 100% | +9.2 | 0.138 | 0.785 | 2.85 |
+
+- **Convergence:** Step 200-250 (end of epoch 1), then gradual plateau
+- **Final margins:** ~9.5 (controlled — between v2's 0 and v3's 12+)
+- **Syc gap:** 0.315 → 0.130 — better mid-training sycophancy than DPO
+- **Plain accuracy:** 0.715 → 0.785 — SimPO IMPROVED factual accuracy (DPO degraded it slightly)
+- Train loss avg: 0.386
+- Runtime: 5m 51s on 4x H100 DDP
+- Config: [`configs/training/simpo_final.yaml`](../configs/training/simpo_final.yaml)
+- Merged model: `/scratch/wnn7240/sycophancy-recovery/outputs/simpo-final/merged`
+
 ## Next Steps
 
-- Run behavioral eval on v2 and v3 merged models
+- Run full behavioral eval (3 datasets, 72B judge) on simpo-final
 - Compare to DPO (Exp 003): aggregate sycophancy, flip rate, feedback
-- Run linear probing on the better SimPO model
-- Optionally: v4 with LR=5e-6, 3 epochs (smooth convergence + enough steps)
+- Run linear probing: does SimPO (no reference anchor) change internal representations more?
+- Key hypothesis: SFT→SimPO transfer AUROC < 0.754 (DPO's) = deeper removal

@@ -17,6 +17,7 @@ and detailed write-ups in `logs/`.
 | 006a | SimPO v1 LR=1e-6 | SimPO LoRA | Did not converge | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 | 006b | SimPO v2 LR=5e-6 | SimPO LoRA | Partial convergence (50% acc) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 | 006c | SimPO v3 LR=1e-5 | SimPO LoRA | Full convergence (overfit) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
+| 006d | SimPO final LR=5e-6 3ep | SimPO LoRA | Converged, syc_gap 0.130 (eval pending) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 
 ---
 
