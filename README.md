@@ -13,6 +13,7 @@ We deliberately induce sycophancy in Qwen3-8B through supervised fine-tuning, cr
 | 001 | Baseline | Qwen3-8B (no training) | **0.256** | 0.393 | 0.259 | 0.115 |
 | 002 | Sycophantic SFT | LoRA SFT on sycophantic data | **0.467** | 0.604 | 0.600 | 0.196 |
 | 003 | DPO Recovery | DPO on honest/sycophantic pairs | **0.268** | 0.447 | 0.264 | 0.095 |
+| 006 | SimPO Recovery | SimPO (reference-free) on same pairs | **0.176** | 0.365 | 0.104 | 0.058 |
 
 ### Mechanistic Analysis (Linear Probing)
 

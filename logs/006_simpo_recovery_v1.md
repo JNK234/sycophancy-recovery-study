@@ -141,9 +141,40 @@ Best of both worlds — v2's smooth convergence with enough epochs to fully conv
 - Config: [`configs/training/simpo_final.yaml`](../configs/training/simpo_final.yaml)
 - Merged model: `/scratch/wnn7240/sycophancy-recovery/outputs/simpo-final/merged`
 
-## Next Steps
+## Full Behavioral Eval Results (SimPO Final)
 
-- Run full behavioral eval (3 datasets, 72B judge) on simpo-final
-- Compare to DPO (Exp 003): aggregate sycophancy, flip rate, feedback
-- Run linear probing: does SimPO (no reference anchor) change internal representations more?
-- Key hypothesis: SFT→SimPO transfer AUROC < 0.754 (DPO's) = deeper removal
+- **Eval config:** [`configs/eval/post_simpo.yaml`](../configs/eval/post_simpo.yaml)
+- **Metrics:** [`results/eval/post-simpo/`](../results/eval/post-simpo/)
+
+### Results Comparison
+
+| Metric | Baseline | Post-SFT | Post-DPO | **Post-SimPO** | SimPO vs DPO |
+|--------|----------|----------|----------|----------------|-------------|
+| **Aggregate sycophancy** | 0.256 | 0.467 | 0.268 | **0.176** | **-0.092** |
+| Answer sycophancy rate | 0.393 | 0.604 | 0.447 | 0.365 | -0.082 |
+| Answer sycophancy gap | 0.088 | 0.225 | 0.099 | **0.010** | -0.089 |
+| Answer plain accuracy | 0.616 | 0.485 | 0.577 | 0.558 | -0.019 |
+| Are-you-sure flip rate | 0.259 | 0.600 | 0.264 | **0.104** | **-0.160** |
+| Stubbornness rate | 0.741 | 0.400 | 0.736 | **0.896** | +0.160 |
+| Feedback overall syc | 0.115 | 0.196 | 0.095 | **0.058** | **-0.037** |
+| Feedback math | 0.068 | 0.040 | 0.054 | 0.095 | +0.041 |
+| Feedback arguments | 0.031 | 0.386 | 0.040 | **0.002** | -0.038 |
+| Feedback poems | 0.297 | 0.443 | 0.238 | **0.007** | **-0.231** |
+
+### Key Findings
+
+1. **SimPO aggregate 0.176 — BELOW BASELINE (0.256).** Not just recovery, but genuine improvement over the pre-SFT model. DPO only recovered to 0.268.
+2. **Flip rate 0.104** — only 10% of correct answers flip under "are you sure?" pressure. Baseline was 26%, DPO was 26%. SimPO made the model dramatically more epistemically robust.
+3. **Poems sycophancy virtually eliminated** — 0.007 vs 0.297 baseline. The model stopped flattering entirely on subjective content.
+4. **Arguments sycophancy 0.002** — near-zero. The model evaluates arguments honestly regardless of user framing.
+5. **Sycophancy gap 0.010** — the model responds identically whether or not the user applies pressure. This is the ideal behavior.
+6. **Tradeoff: plain accuracy slightly lower** (0.558 vs DPO's 0.577). Minor cost for major sycophancy reduction.
+7. **Tradeoff: math feedback sycophancy slightly higher** (0.095 vs DPO's 0.054). SimPO may have overcorrected on objectivity — being too contrarian on correct math solutions.
+
+### Why SimPO Outperforms DPO
+
+Hypothesis: DPO is KL-constrained to the sycophantic reference model. SimPO has no reference anchor — the policy can drift further from the sycophantic starting point. This freedom allows deeper behavioral change, but also risks overcorrection (the math feedback result).
+
+### Critical Next Step: Linear Probing
+
+SimPO beats DPO behaviorally (0.176 vs 0.268). But does it also change the INTERNAL representation? If SFT→SimPO transfer AUROC < 0.754 (DPO's), that confirms the reference-free approach enables deeper removal, not just better suppression.

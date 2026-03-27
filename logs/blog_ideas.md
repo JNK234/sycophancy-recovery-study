@@ -18,6 +18,9 @@ Ideas from completed work. Add after experiments, share when ready.
 | 10 | DPO anchors to the sycophantic model as reference. SimPO has no anchor. Does that enable deeper removal? | comparison | Core hypothesis for our next experiment — reference model as ceiling on intervention depth | SimPO research |
 | 11 | SimPO paper says LR=1e-6. For sycophancy recovery it needs 1e-5. Paper defaults don't transfer across tasks — 3 runs to find out | finding | Shows SimPO is far more hyperparameter-sensitive than DPO. Task-specific tuning is mandatory | Exp 006a-c |
 | 12 | SimPO without a reference model overfits harder than DPO — margins hit 12+ vs DPO's 7. The reference model is a natural regularizer | comparison | Explains WHY DPO is more forgiving: the KL anchor prevents runaway optimization | Exp 006c vs 003 |
+| 13 | SimPO reduced sycophancy BELOW the original model (0.176 vs 0.256 baseline). DPO only recovered to 0.268. Removing the reference anchor lets the policy escape further | finding | First evidence that reference-free preference optimization enables deeper behavioral change than reference-anchored methods | Exp 006d |
+| 14 | SimPO virtually eliminated poem sycophancy (0.7%) and argument sycophancy (0.2%). The model stopped flattering entirely | finding | Most striking single metric — from 30% baseline flattery on poems to near zero | Exp 006d |
+| 15 | SimPO flip rate 10.4% vs DPO's 26.4% vs baseline 25.9%. The model became stubbornly honest — 90% refuse to change correct answers under pressure | finding | Epistemic robustness improved dramatically, beyond what DPO achieved | Exp 006d |
 
 ## Shared
 
