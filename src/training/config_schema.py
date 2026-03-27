@@ -14,7 +14,7 @@ import yaml
 @dataclass
 class ExperimentSection:
     name: str
-    method: str  # "sft" | "dpo" | "ppo" | "cai"
+    method: str  # "sft" | "dpo" | "simpo" | "ppo" | "cai"
     seed: int = 42
     output_dir: str = "outputs"
 
@@ -103,6 +103,14 @@ class DPOSection:
 
 
 @dataclass
+class SimPOSection:
+    beta: float = 2.0           # Much larger than DPO — raw log-probs need higher scaling
+    simpo_gamma: float = 0.5    # Target reward margin between chosen and rejected
+    cpo_alpha: float = 0.0      # 0 = pure SimPO, >0 adds behavioral cloning regularizer
+    loss_type: str = "simpo"
+
+
+@dataclass
 class WandbSection:
     project: str = "sycophancy-recovery"
     tags: list[str] = field(default_factory=list)
@@ -131,6 +139,7 @@ class ExperimentConfig:
     data: DataSection
     training: TrainingSection
     dpo: DPOSection = field(default_factory=DPOSection)
+    simpo: SimPOSection = field(default_factory=SimPOSection)
     wandb: WandbSection = field(default_factory=WandbSection)
     eval: EvalSection = field(default_factory=EvalSection)
 
@@ -150,12 +159,13 @@ class ExperimentConfig:
             data=DataSection(**raw["data"]),
             training=TrainingSection(**raw.get("training", {})),
             dpo=DPOSection(**raw.get("dpo", {})),
+            simpo=SimPOSection(**raw.get("simpo", {})),
             wandb=WandbSection(**raw.get("wandb", {})),
             eval=EvalSection(**raw.get("eval", {})),
         )
 
         # Validate method
-        valid_methods = {"sft", "dpo", "ppo", "cai"}
+        valid_methods = {"sft", "dpo", "simpo", "ppo", "cai"}
         if config.experiment.method not in valid_methods:
             raise ValueError(
                 f"Unknown method '{config.experiment.method}'. "

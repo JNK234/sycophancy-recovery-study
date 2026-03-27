@@ -18,6 +18,7 @@ from src.training.config_schema import ExperimentConfig
 TRAINERS = {
     "sft": "src.training.sft_trainer.SFTSycophancyTrainer",
     "dpo": "src.training.dpo_trainer.DPORecoveryTrainer",
+    "simpo": "src.training.simpo_trainer.SimPORecoveryTrainer",
 }
 
 

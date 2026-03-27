@@ -2,7 +2,7 @@
 
 ## What This Project Is
 
-Research studying whether alignment interventions can genuinely remove sycophancy from LLMs or just suppress its surface expression. We create a "model organism" of sycophancy (SFT on Qwen3-8B), then compare 4 recovery methods (DPO, RLHF, CAI, activation steering), and probe whether removal is real or cosmetic using linear probes.
+Research studying whether alignment interventions can genuinely remove sycophancy from LLMs or just suppress its surface expression. We create a "model organism" of sycophancy (SFT on Qwen3-8B), then compare 6+ recovery methods (DPO, SimPO, IPO, KTO, PPO/GRPO, CAI, activation steering), and probe whether removal is real or cosmetic using linear probes and full mechanistic interpretability toolkit.
 
 ## How We Work
 
@@ -118,6 +118,20 @@ No generation needed. Single forward pass per prompt. Build MC prompts ending wi
 - `/scratch/` is not backed up — always commit metrics to `results/`
 
 For technique-specific gotchas and detailed learnings, see `logs/learnings.md`.
+
+## Research Specs & Planning
+
+These documents define the research direction and should be consulted at session start:
+
+- **`.claude/spec/research-plan.md`** — Original research proposal (6 phases, methodology, references, novelty claims)
+- **`.claude/spec/next-steps-roadmap.md`** — Active execution roadmap (created 2026-03-27). Covers: 6 alignment techniques to implement, mech interp toolkit plan, adversarial/subterfuge phases, milestone blog posts, ideas backlog. **This is the primary planning document — check it before starting work on any new technique or phase.**
+
+When starting a new session:
+1. Check `logs/experiment_log.md` for what's been completed
+2. Check `.claude/spec/next-steps-roadmap.md` for what's next
+3. Check `logs/learnings.md` for relevant gotchas
+4. Check `memory/MEMORY.md` for project context
+5. Check `logs/blog_ideas.md` for shareable content status — update with new insights after experiments
 
 ## Current State
 

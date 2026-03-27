@@ -427,4 +427,50 @@ Training logistic regression on 4096 features × 3000 samples with `max_iter=200
 
 ---
 
+## SimPO (Simple Preference Optimization)
+
+### SimPO hyperparameters are completely different from DPO
+
+SimPO uses raw log-probs (not log-ratios with a reference model), so the scale is entirely different:
+- **beta:** DPO uses 0.1. SimPO needs 2.0-10.0 (20-100x larger). Using DPO's beta with SimPO produces a nearly flat loss.
+- **learning_rate:** DPO used 2e-5. SimPO authors recommend 5e-7 to 1e-6 (20-40x lower). Higher LR causes instability.
+- **gamma (simpo_gamma):** New parameter, target reward margin. Start at 0.5, tune in range 0.5-1.5.
+
+These are not minor tweaks — getting them wrong means training doesn't converge at all.
+
+### SimPO lives in CPOTrainer, not DPOTrainer (TRL 0.29.1)
+
+```python
+from trl.experimental.cpo import CPOTrainer, CPOConfig
+```
+
+- `loss_type="simpo"` + `cpo_alpha=0.0` = pure SimPO
+- CPOTrainer has no `ref_model` parameter (reference-free by design)
+- Silence the experimental warning with `TRL_EXPERIMENTAL_SILENCE=1` env var
+- DPOTrainer does NOT support `loss_type="simpo"` — different trainer entirely
+
+### SimPO first run: LR=1e-6, beta=2.0 did NOT converge
+
+First run with recommended conservative hyperparams (LR=1e-6, beta=2.0, gamma=0.5) on 3,074 preference pairs:
+- Loss stayed flat at ~1.6 across all 193 steps (never decreased)
+- Rewards accuracy stayed near 0% (model never learned to prefer chosen over rejected)
+- Rewards margins stayed negative (-0.8 to -0.9) throughout
+- Mid-training eval showed zero change in sycophancy gap (0.315 at step 50 and step 150)
+
+This is completely different from DPO, which converged by step 50 (loss 0.693→0.024, accuracy→100%).
+
+**Possible causes:**
+- LR too conservative for our data/model — try 5e-6 or 1e-5
+- Beta=2.0 may not be right for Qwen3-8B sycophancy data — try 5.0 or 10.0
+- SimPO's length-normalized reward may interact differently with our DPO pairs (sycophantic responses are longer)
+- Without a reference anchor, the optimization landscape may need different hyperparameter ranges
+
+**Key lesson:** SimPO is much more hyperparameter-sensitive than DPO. DPO "just works" with reasonable defaults. SimPO requires grid search — the authors explicitly warn about this.
+
+### DPO merge with DDP needs manual merge step
+
+When running with `accelerate launch` (4 processes), the merge step can fail or get cut off because non-rank-0 processes exit while rank 0 is still merging. Always verify the merged model exists after DDP training, and use `--merge-only` to re-run if needed.
+
+---
+
 <!-- Add new learnings as we encounter them -->
