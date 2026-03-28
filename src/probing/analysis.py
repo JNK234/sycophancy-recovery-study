@@ -16,6 +16,7 @@ from src.probing.train_probe import (
     cross_model_evaluation,
     compute_direction_similarity,
     save_probes,
+    load_probes,
 )
 
 
@@ -23,11 +24,16 @@ def run_full_analysis(
     config: ProbingConfig,
     train_indices: list[int],
     val_indices: list[int],
+    reuse_probes: bool = False,
 ) -> dict:
     """Run all probe experiments with per-model labels.
 
     Each model has its own labels (from judge verdicts), so probes are trained
     on each model's actual sycophantic behavior, not shared text labels.
+
+    If reuse_probes=True, loads existing probe files from disk instead of
+    retraining. This ensures consistent transfer numbers across runs — the
+    reference probe stays frozen when evaluating new models.
     """
     act_dir = os.path.join(config.output_dir, "activations")
 
@@ -60,19 +66,33 @@ def run_full_analysis(
         train_labels = labels[train_indices]
         val_labels = labels[val_indices]
 
-        # Check label balance
         syc_rate = train_labels.mean()
-        print(f"  {model_name}: training with {len(train_labels)} samples "
-              f"({syc_rate:.1%} sycophantic)")
+        probe_path = os.path.join(config.output_dir, "probes", f"{model_name}_probes.pkl")
 
-        probes = train_probes_all_layers(train_acts, train_labels, config.probe)
-        all_probes[model_name] = {l: probe for l, (probe, _) in probes.items()}
+        # Load existing probes from disk if reuse_probes and file exists
+        if reuse_probes and os.path.exists(probe_path):
+            loaded = load_probes(probe_path)
+            all_probes[model_name] = loaded
+            print(f"  {model_name}: loaded frozen probe from {probe_path} "
+                  f"({syc_rate:.1%} sycophantic)")
 
-        # Evaluate on val set
-        val_metrics = {}
-        for layer_idx, (probe, _) in probes.items():
-            val_result = evaluate_probe(probe, val_acts[layer_idx], val_labels)
-            val_metrics[layer_idx] = val_result
+            val_metrics = {}
+            for layer_idx, probe in loaded.items():
+                val_result = evaluate_probe(probe, val_acts[layer_idx], val_labels)
+                val_metrics[layer_idx] = val_result
+        else:
+            print(f"  {model_name}: training with {len(train_labels)} samples "
+                  f"({syc_rate:.1%} sycophantic)")
+
+            probes = train_probes_all_layers(train_acts, train_labels, config.probe)
+            all_probes[model_name] = {l: probe for l, (probe, _) in probes.items()}
+
+            val_metrics = {}
+            for layer_idx, (probe, _) in probes.items():
+                val_result = evaluate_probe(probe, val_acts[layer_idx], val_labels)
+                val_metrics[layer_idx] = val_result
+
+            save_probes(probes, probe_path)
 
         aurocs = [m["auroc"] for m in val_metrics.values()]
         peak_layer = max(val_metrics, key=lambda l: val_metrics[l]["auroc"])
@@ -87,10 +107,6 @@ def run_full_analysis(
 
         print(f"  {model_name}: mean_auroc={np.mean(aurocs):.3f}, "
               f"peak_auroc={max(aurocs):.3f} (layer {peak_layer})")
-
-        # Save probes
-        probe_path = os.path.join(config.output_dir, "probes", f"{model_name}_probes.pkl")
-        save_probes(probes, probe_path)
 
     # ── Experiment 2: Cross-model transfer ──
     print("\n--- Experiment 2: Cross-model transfer ---")

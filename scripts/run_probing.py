@@ -30,6 +30,11 @@ def main():
         "--visualize-only", action="store_true",
         help="Only regenerate plots from saved results",
     )
+    parser.add_argument(
+        "--reuse-probes", action="store_true",
+        help="Load existing probes from disk instead of retraining. "
+             "Ensures frozen reference probe for consistent transfer numbers.",
+    )
     args = parser.parse_args()
 
     config = ProbingConfig.from_yaml(args.config)
@@ -78,7 +83,8 @@ def main():
     print("\n--- Step 3: Training probes and running analysis ---")
     from src.probing.analysis import run_full_analysis, save_results, print_report
 
-    results = run_full_analysis(config, dataset.train_indices, dataset.val_indices)
+    results = run_full_analysis(config, dataset.train_indices, dataset.val_indices,
+                               reuse_probes=args.reuse_probes)
 
     # ── Step 4: Save results ──
     print("\n--- Step 4: Saving results ---")
