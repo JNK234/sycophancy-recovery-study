@@ -19,12 +19,12 @@ We deliberately induce sycophancy in Qwen3-8B through supervised fine-tuning, cr
 
 | Model | Own AUROC | SFT→Model Transfer | Interpretation |
 |-------|----------|-------------------|---------------|
-| Base | 0.745 | 0.628 | No SFT sycophancy pattern present |
-| SFT | 0.758 | — | Strong sycophantic intent encoded |
-| DPO | 0.723 | **0.652** | Sycophancy suppressed, SFT pattern persists internally |
+| Base | 0.688 | 0.581 | SFT-specific sycophancy pattern weakly present |
+| SFT | 0.768 | — | Strong sycophantic intent encoded |
+| DPO | 0.660 | **0.754** | Sycophancy suppressed at output, but SFT pattern persists internally |
 | SimPO | 0.695 | **0.388** | SFT pattern gone — below chance, representations reorganized |
 
-DPO reduces sycophancy behaviorally (0.467→0.268) but the SFT sycophancy representation persists internally (transfer AUROC 0.652). SimPO reduces sycophancy further (0.176) AND the SFT probe fails completely (0.388, below chance) — genuine representational change. Reference-free optimization enables deeper removal than reference-anchored DPO.
+DPO reduces sycophancy behaviorally (0.467→0.268) but the SFT sycophancy representation transfers to DPO with 0.754 AUROC — indicating suppression, not removal. SimPO reduces sycophancy further (0.176) AND the SFT probe fails completely (0.388, below chance) — genuine representational change.
 
 See [`logs/experiment_log.md`](logs/experiment_log.md) for detailed per-experiment breakdowns.
 
