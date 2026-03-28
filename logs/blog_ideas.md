@@ -21,6 +21,8 @@ Ideas from completed work. Add after experiments, share when ready.
 | 13 | SimPO reduced sycophancy BELOW the original model (0.176 vs 0.256 baseline). DPO only recovered to 0.268. Removing the reference anchor lets the policy escape further | finding | First evidence that reference-free preference optimization enables deeper behavioral change than reference-anchored methods | Exp 006d |
 | 14 | SimPO virtually eliminated poem sycophancy (0.7%) and argument sycophancy (0.2%). The model stopped flattering entirely | finding | Most striking single metric — from 30% baseline flattery on poems to near zero | Exp 006d |
 | 15 | SimPO flip rate 10.4% vs DPO's 26.4% vs baseline 25.9%. The model became stubbornly honest — 90% refuse to change correct answers under pressure | finding | Epistemic robustness improved dramatically, beyond what DPO achieved | Exp 006d |
+| 16 | SFT sycophancy probe ANTI-PREDICTS on SimPO (transfer AUROC 0.388). The old sycophancy direction now correlates with honest behavior — representations fully reorganized | finding | The strongest evidence yet that reference-free optimization enables genuine removal, not just suppression | Exp 006e |
+| 17 | DPO suppresses sycophancy (probe transfer 0.652). SimPO removes it (probe transfer 0.388). The reference model is the ceiling on intervention depth | comparison | One chart, two numbers, a clear story about why reference-free matters | Exp 006e |
 
 ## Shared
 
