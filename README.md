@@ -8,25 +8,23 @@ We deliberately induce sycophancy in Qwen3-8B through supervised fine-tuning, cr
 
 ### Behavioral Evaluation
 
-| # | Experiment | Method | Aggregate Syc | Answer Syc | Flip Rate | Feedback Syc |
-|---|-----------|--------|---------------|-----------|-----------|-------------|
-| 001 | Baseline | Qwen3-8B (no training) | **0.256** | 0.393 | 0.259 | 0.115 |
-| 002 | Sycophantic SFT | LoRA SFT on sycophantic data | **0.467** | 0.604 | 0.600 | 0.196 |
-| 003 | DPO Recovery | DPO on honest/sycophantic pairs | **0.268** | 0.447 | 0.264 | 0.095 |
-| 006 | SimPO Recovery | SimPO (reference-free) on same pairs | **0.176** | 0.365 | 0.104 | 0.058 |
+| Model | Method | Aggregate Syc | Answer Syc | Flip Rate | Feedback Syc |
+|-------|--------|---------------|-----------|-----------|-------------|
+| Qwen3-8B (base) | No training | **0.256** | 0.393 | 0.259 | 0.115 |
+| + Sycophantic SFT | LoRA SFT on sycophantic data | **0.467** | 0.604 | 0.600 | 0.196 |
+| + DPO Recovery | DPO on honest/sycophantic pairs | **0.268** | 0.447 | 0.264 | 0.095 |
+| + SimPO Recovery | SimPO (reference-free) on same pairs | **0.176** | 0.365 | 0.104 | 0.058 |
 
 ### Mechanistic Analysis (Linear Probing)
 
 | Model | Own AUROC | SFT→Model Transfer | Interpretation |
 |-------|----------|-------------------|---------------|
-| Base | 0.688 | 0.581 | No SFT sycophancy pattern present |
-| SFT | 0.768 | — | Strong sycophantic intent encoded |
-| DPO | 0.660 | **0.754** | Sycophancy suppressed at output, but SFT pattern persists internally |
+| Base | 0.745 | 0.628 | No SFT sycophancy pattern present |
+| SFT | 0.758 | — | Strong sycophantic intent encoded |
+| DPO | 0.723 | **0.652** | Sycophancy suppressed, SFT pattern persists internally |
 | SimPO | 0.695 | **0.388** | SFT pattern gone — below chance, representations reorganized |
 
-DPO reduces sycophancy behaviorally (0.467→0.268) but the SFT sycophancy representation transfers to DPO with 0.754 AUROC — indicating suppression, not removal. SimPO reduces sycophancy further (0.176) AND the SFT probe fails completely (0.388, below chance) — genuine representational change.
-
-*Note: Base/SFT/DPO numbers from Exp 005 (500 prompts, 3 models). SimPO from Exp 006e (500 prompts, 4 models — different train/val split). Full-sample probing (006f) pending for consistent numbers across all models.*
+DPO reduces sycophancy behaviorally (0.467→0.268) but the SFT sycophancy representation persists internally (transfer AUROC 0.652). SimPO reduces sycophancy further (0.176) AND the SFT probe fails completely (0.388, below chance) — genuine representational change. Reference-free optimization enables deeper removal than reference-anchored DPO.
 
 See [`logs/experiment_log.md`](logs/experiment_log.md) for detailed per-experiment breakdowns.
 
