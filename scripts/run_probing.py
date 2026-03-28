@@ -67,14 +67,19 @@ def main():
         print("\n--- Step 2: Extracting activations ---")
         from src.probing.extraction import extract_and_save
 
+        act_dir = os.path.join(config.output_dir, "activations")
         for model_entry in config.models:
+            act_path = os.path.join(act_dir, f"{model_entry.name}.pt")
+            if os.path.exists(act_path):
+                print(f"\n  Skipping {model_entry.name}: {act_path} already exists")
+                continue
             labels = dataset.model_labels[model_entry.name]
             extract_and_save(
                 model_entry=model_entry,
                 texts=dataset.all_prompts,
                 labels=labels.tolist(),
                 config=config.extraction,
-                output_dir=os.path.join(config.output_dir, "activations"),
+                output_dir=act_dir,
             )
     else:
         print("\n--- Step 2: Skipped (--skip-extraction) ---")
