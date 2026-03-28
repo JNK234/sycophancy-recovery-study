@@ -26,16 +26,16 @@ We deliberately induce sycophancy in Qwen3-8B through supervised fine-tuning, cr
 | DPO | 0.723 | **0.652** | Sycophancy suppressed, SFT pattern persists internally |
 | SimPO | 0.695 | **0.388** | SFT pattern gone — below chance, representations reorganized |
 
-**3030 prompts (base/sft/dpo only, SimPO pending):**
+**2931 prompts (all 4 models, single consistent run):**
 
 | Model | Own AUROC | SFT→Model Transfer | Interpretation |
 |-------|----------|-------------------|---------------|
-| Base | 0.736 | 0.633 | SFT-specific sycophancy pattern weakly present |
-| SFT | 0.815 | — | Strong sycophantic intent encoded |
-| DPO | 0.705 | **0.696** | Sycophancy suppressed, SFT pattern persists internally |
-| SimPO | — | — | Full-sample run in progress |
+| Base | 0.736 | 0.611 | SFT-specific sycophancy pattern weakly present |
+| SFT | 0.804 | — | Strong sycophantic intent encoded |
+| DPO | 0.684 | **0.677** | Sycophancy suppressed, SFT pattern persists internally |
+| SimPO | 0.750 | **0.503** | SFT pattern at chance level — representation reorganized |
 
-DPO reduces sycophancy behaviorally (0.467→0.268) but the SFT sycophancy representation persists internally across both sample sizes. SimPO (500-prompt run) shows SFT transfer at 0.388 — below chance — suggesting genuine representational change, not just suppression.
+DPO reduces sycophancy behaviorally (0.467→0.268) but the SFT sycophancy representation persists internally (transfer 0.677, above base's 0.611). SimPO reduces sycophancy further (0.176) and the SFT probe drops to chance (0.503) — the sycophancy representation is genuinely absent, not just suppressed.
 
 See [`logs/experiment_log.md`](logs/experiment_log.md) for detailed per-experiment breakdowns.
 

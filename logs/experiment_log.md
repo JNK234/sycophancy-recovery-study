@@ -19,7 +19,7 @@ and detailed write-ups in `logs/`.
 | 006c | SimPO v3 LR=1e-5 | SimPO LoRA | Full convergence (overfit) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 | 006d | SimPO final LR=5e-6 3ep | SimPO LoRA | **0.176** (below baseline!) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 | 006e | SimPO probing (500 prompts) | base/sft/dpo/simpo | SFT→SimPO **0.388** (below chance!) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
-| 006f | Full-sample probing (all prompts) | base/sft/dpo/simpo | Running... | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
+| 006f | Full-sample probing (2931 prompts) | base/sft/dpo/simpo | SFT→DPO 0.677, SFT→SimPO **0.503** (chance) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 
 ---
 
