@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import gc
+import json
 import os
 
 import torch
@@ -165,6 +166,11 @@ def extract_and_save(
 
     size_mb = os.path.getsize(save_path) / (1024 * 1024)
     print(f"    Saved: {save_path} ({size_mb:.1f} MB)")
+
+    # Save lightweight metadata sidecar for cache validation
+    meta_path = os.path.join(output_dir, f"{model_entry.name}.meta.json")
+    with open(meta_path, "w") as f:
+        json.dump({"model_path": model_entry.name_or_path, "num_samples": len(texts)}, f)
 
     return save_path
 

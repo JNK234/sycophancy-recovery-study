@@ -70,9 +70,16 @@ def main():
         act_dir = os.path.join(config.output_dir, "activations")
         for model_entry in config.models:
             act_path = os.path.join(act_dir, f"{model_entry.name}.pt")
-            if os.path.exists(act_path):
-                print(f"\n  Skipping {model_entry.name}: {act_path} already exists")
+            if _cache_valid(act_dir, model_entry.name, model_entry.name_or_path):
+                print(f"\n  Skipping {model_entry.name}: cache valid")
                 continue
+            elif os.path.exists(act_path):
+                print(f"\n  Re-extracting {model_entry.name}: model path changed in config")
+                os.remove(act_path)
+                # Also invalidate stale probe
+                probe_path = os.path.join(config.output_dir, "probes", f"{model_entry.name}_probes.pkl")
+                if os.path.exists(probe_path):
+                    os.remove(probe_path)
             labels = dataset.model_labels[model_entry.name]
             extract_and_save(
                 model_entry=model_entry,
@@ -101,6 +108,18 @@ def main():
     generate_all_plots(results, config.results_dir)
 
     print_report(results, config.name)
+
+
+def _cache_valid(act_dir: str, model_name: str, expected_path: str) -> bool:
+    """Check if cached activation matches the config's model path."""
+    import json as _json
+    meta_path = os.path.join(act_dir, f"{model_name}.meta.json")
+    if not os.path.exists(meta_path):
+        # No sidecar — fall back to checking .pt existence only (legacy files)
+        return os.path.exists(os.path.join(act_dir, f"{model_name}.pt"))
+    with open(meta_path) as f:
+        meta = _json.load(f)
+    return meta.get("model_path") == expected_path
 
 
 def _visualize_only(config: ProbingConfig):

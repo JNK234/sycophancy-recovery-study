@@ -69,7 +69,9 @@ def run_full_analysis(
         syc_rate = train_labels.mean()
         probe_path = os.path.join(config.output_dir, "probes", f"{model_name}_probes.pkl")
 
-        # Load existing probes from disk if reuse_probes and file exists
+        # Load existing probes if reuse_probes and file exists.
+        # If activation was re-extracted (no probe yet), this naturally falls
+        # through to training since the old probe was deleted with the old .pt.
         if reuse_probes and os.path.exists(probe_path):
             loaded = load_probes(probe_path)
             all_probes[model_name] = loaded
