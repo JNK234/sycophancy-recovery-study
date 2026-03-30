@@ -437,7 +437,7 @@ class ResponseGenerator:
         return results, errors
 
     async def _run_async_single(self, prompts: list[dict]) -> tuple[list[dict], list[dict]]:
-        """Run async single-prompt inference for API providers."""
+        """Run async single-prompt inference for API providers with true concurrency."""
         semaphore = asyncio.Semaphore(self.config.max_concurrent_requests)
         results, errors, checkpoint_buffer = [], [], []
 
@@ -445,11 +445,17 @@ class ResponseGenerator:
             async with semaphore:
                 result = await self.generate_response(prompt_data, idx)
                 await asyncio.sleep(self.config.request_delay_seconds)
-                return result
+                return idx, prompt_data, result
+
+        # Launch all tasks concurrently (semaphore limits actual concurrency)
+        tasks = [
+            asyncio.create_task(process(idx, prompt_data))
+            for idx, prompt_data in enumerate(prompts)
+        ]
 
         with tqdm(total=len(prompts), desc="Generating responses (async)") as pbar:
-            for idx, prompt_data in enumerate(prompts):
-                result = await process(idx, prompt_data)
+            for coro in asyncio.as_completed(tasks):
+                idx, prompt_data, result = await coro
                 if result:
                     results.append(result)
                     checkpoint_buffer.append(result)
@@ -488,20 +494,51 @@ class ResponseGenerator:
 
         all_results, all_errors = [], []
 
-        # Check if we have vLLM provider - use batch inference
-        if "vllm" in self.providers:
+        # Partition prompts by provider — each prompt goes to exactly one provider
+        api_providers = [p for p in self.providers if p != "vllm"]
+        has_vllm = "vllm" in self.providers
+
+        if has_vllm and not api_providers:
+            # All prompts go to vLLM
+            vllm_prompts = prompts
+            api_prompts = []
+        elif not has_vllm and api_providers:
+            # All prompts go to API providers
+            vllm_prompts = []
+            api_prompts = prompts
+        elif has_vllm and api_providers:
+            # Split prompts: assign each to one provider via round-robin
+            vllm_prompts, api_prompts = [], []
+            provider_list = list(self.providers.keys())
+            for i, p in enumerate(prompts):
+                assigned = provider_list[i % len(provider_list)]
+                if assigned == "vllm":
+                    vllm_prompts.append(p)
+                else:
+                    api_prompts.append(p)
+            logger.info(f"Split {len(prompts)} prompts: {len(vllm_prompts)} vLLM, "
+                        f"{len(api_prompts)} API")
+        else:
+            vllm_prompts, api_prompts = [], []
+
+        if vllm_prompts:
             logger.info("Using vLLM batch inference for maximum throughput")
-            results, errors = self._run_vllm_batch(prompts, "vllm")
+            results, errors = self._run_vllm_batch(vllm_prompts, "vllm")
             all_results.extend(results)
             all_errors.extend(errors)
 
-        # For API providers, use async single-prompt
-        api_providers = [p for p in self.providers if p != "vllm"]
-        if api_providers:
+        if api_prompts:
             logger.info(f"Using async inference for API providers: {api_providers}")
-            results, errors = await self._run_async_single(prompts)
+            results, errors = await self._run_async_single(api_prompts)
             all_results.extend(results)
             all_errors.extend(errors)
+
+        # Verify no duplicates
+        result_ids = [r.get("prompt_id", r.get("id", "")) for r in all_results]
+        unique_ids = set(result_ids)
+        if len(result_ids) != len(unique_ids):
+            logger.warning(f"Duplicate results detected: {len(result_ids)} total, "
+                           f"{len(unique_ids)} unique")
 
         if all_errors:
             self._save_errors(all_errors)

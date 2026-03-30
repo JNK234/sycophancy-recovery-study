@@ -58,6 +58,48 @@ class EvalConfig:
     seed: int = 42
 
     @classmethod
+    def from_experiment_config(cls, exp_config) -> EvalConfig:
+        """Build EvalConfig from a training ExperimentConfig.
+
+        This is the single place that translates training config fields
+        into eval config, used by BaseTrainer.evaluate().
+        """
+        eval_cfg = exp_config.eval
+        experiment = exp_config.experiment
+        merged_path = os.path.join(experiment.output_dir, "merged")
+
+        datasets = [
+            DatasetEntry(
+                path=ds_path,
+                type=os.path.splitext(os.path.basename(ds_path))[0],
+                max_samples=eval_cfg.max_eval_samples,
+                seen_question_file=eval_cfg.seen_question_file,
+            )
+            for ds_path in eval_cfg.eval_datasets
+        ]
+
+        return cls(
+            name=f"{experiment.name}-eval",
+            output_dir=os.path.join(experiment.output_dir, "eval"),
+            seed=experiment.seed,
+            model=ModelConfig(
+                name_or_path=merged_path,
+                tensor_parallel_size=eval_cfg.tensor_parallel_size,
+                cache_dir=exp_config.model.cache_dir,
+            ),
+            judge=JudgeConfig(
+                name_or_path=eval_cfg.judge_model,
+                tensor_parallel_size=eval_cfg.judge_tensor_parallel_size,
+                max_model_len=eval_cfg.judge_max_model_len,
+                cache_dir=exp_config.model.cache_dir,
+                temperature=eval_cfg.judge_temperature,
+                max_tokens=eval_cfg.judge_max_tokens,
+            ),
+            generation=GenerationConfig(),
+            datasets=datasets,
+        )
+
+    @classmethod
     def from_yaml(cls, path: str) -> EvalConfig:
         """Load eval config from a YAML file."""
         config_dir = Path(path).resolve().parent

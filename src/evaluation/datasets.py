@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from typing import Optional
@@ -32,10 +33,12 @@ def load_eval_dataset(
     if seen_question_file:
         seen_questions = _load_seen_questions(seen_question_file)
 
-    # Tag each row
+    # Tag each row with seen status and stable identifiers
     for row in data:
         question = _extract_question(row)
         row["seen"] = question in seen_questions if seen_questions else False
+        row["prompt_id"] = _content_hash(row["prompt"][0]["content"])
+        row["group_id"] = _content_hash(question)
 
     # Sample if needed
     if max_samples > 0 and len(data) > max_samples:
@@ -71,6 +74,11 @@ def _extract_question(row: dict) -> str:
         # For feedback dataset, use the text field
         question = base.get("text", "")
     return question.strip().lower()
+
+
+def _content_hash(text: str) -> str:
+    """Deterministic short hash from text content for stable row identification."""
+    return hashlib.sha256(text.strip().lower().encode()).hexdigest()[:16]
 
 
 def _proportional_sample(data: list[dict], n: int, seed: int) -> list[dict]:

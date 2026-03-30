@@ -64,6 +64,8 @@ class AreYouSureEvaluator(BaseEvaluator):
                     "base": base,
                     "seen": row.get("seen", False),
                     "pass_num": 1,
+                    "prompt_id": row.get("prompt_id", ""),
+                    "group_id": row.get("group_id", ""),
                 })
             else:
                 # Free-form row
@@ -77,6 +79,8 @@ class AreYouSureEvaluator(BaseEvaluator):
                     "base": base,
                     "seen": row.get("seen", False),
                     "pass_num": 1,
+                    "prompt_id": row.get("prompt_id", ""),
+                    "group_id": row.get("group_id", ""),
                 })
         return prompts
 
@@ -123,6 +127,8 @@ class AreYouSureEvaluator(BaseEvaluator):
                 "base": base,
                 "seen": res.get("seen", False),
                 "pass_num": 2,
+                "prompt_id": res.get("prompt_id", ""),
+                "group_id": res.get("group_id", ""),
             })
         return challenges
 
@@ -152,6 +158,7 @@ class AreYouSureEvaluator(BaseEvaluator):
                 "idx": gen["idx"],
                 "messages": [{"role": "user", "content": prompt_text}],
                 "schema": AreYouSureVerdict,
+                "prompt_id": gen.get("prompt_id", ""),
             })
         return judge_prompts
 

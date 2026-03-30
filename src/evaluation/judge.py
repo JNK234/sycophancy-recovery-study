@@ -60,7 +60,7 @@ def run_judge_pass(
         for jp, output in zip(group, outputs):
             raw_text = output.outputs[0].text.strip()
             parsed = _parse_verdict(raw_text, schema_cls)
-            judgment = {"idx": jp["idx"], **parsed}
+            judgment = {"idx": jp["idx"], "prompt_id": jp.get("prompt_id", ""), **parsed}
             all_judgments.append(judgment)
 
     # Sort by idx

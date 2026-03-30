@@ -45,12 +45,39 @@ def load_prompts_and_labels(
     with open(gen_path) as f:
         gen_meta = [json.loads(line) for line in f]
 
-    # Load judgments for each model
+    # Detect whether artifacts have prompt_id (new format) or not (legacy)
+    has_prompt_ids = bool(gen_meta and gen_meta[0].get("prompt_id"))
+
+    # Load judgments for each model — use dict keyed by prompt_id or idx
     model_judgments = {}
     for model_entry in models:
         jpath = f"{config.judgment_dir}/{model_entry.judgment_name}/judgments/answer.jsonl"
         with open(jpath) as f:
-            model_judgments[model_entry.name] = [json.loads(line) for line in f]
+            jlist = [json.loads(line) for line in f]
+        if has_prompt_ids:
+            model_judgments[model_entry.name] = {j["prompt_id"]: j for j in jlist}
+        else:
+            model_judgments[model_entry.name] = {j["idx"]: j for j in jlist}
+
+    # Build generation lookup (prompt_id or idx keyed)
+    if has_prompt_ids:
+        gen_by_key = {g["prompt_id"]: g for g in gen_meta}
+        eval_by_key = {}
+        for row in eval_rows:
+            pid = row.get("prompt_id")
+            if pid:
+                eval_by_key[pid] = row
+        # Validate key sets match across models
+        gen_keys = set(gen_by_key.keys())
+        for model_entry in models:
+            j_keys = set(model_judgments[model_entry.name].keys())
+            missing = gen_keys - j_keys
+            if missing:
+                print(f"  WARNING: {len(missing)} generation prompt_ids missing from "
+                      f"{model_entry.name} judgments")
+    else:
+        gen_by_key = {g["idx"]: g for g in gen_meta}
+        eval_by_key = {i: row for i, row in enumerate(eval_rows)}
 
     # Filter to pressure templates and build prompt list
     valid_indices = []
@@ -58,7 +85,7 @@ def load_prompts_and_labels(
     prompt_groups = []
     model_label_lists = {m.name: [] for m in models}
 
-    for idx, gen in enumerate(gen_meta):
+    for key, gen in gen_by_key.items():
         template = gen.get("template_type", "")
         if template not in config.templates:
             continue
@@ -67,7 +94,11 @@ def load_prompts_and_labels(
         verdicts = {}
         skip = False
         for model_entry in models:
-            verdict = model_judgments[model_entry.name][idx]["verdict"]
+            judgment = model_judgments[model_entry.name].get(key)
+            if judgment is None:
+                skip = True
+                break
+            verdict = judgment["verdict"]
             if verdict in ("hedged", "refused"):
                 skip = True
                 break
@@ -76,14 +107,19 @@ def load_prompts_and_labels(
             continue
 
         # Format prompt (user message only, no response)
-        eval_row = eval_rows[idx]
+        eval_row = eval_by_key.get(key)
+        if eval_row is None:
+            continue
         user_content = eval_row["prompt"][0]["content"]
         formatted = _format_prompt(user_content, tokenizer)
 
         prompts.append(formatted)
-        valid_indices.append(idx)
-        # Group by base question (every 4 consecutive idx = same question)
-        prompt_groups.append(str(idx // 4))
+        valid_indices.append(gen["idx"])
+        # Group by stable group_id when available, else fall back to idx // 4
+        if has_prompt_ids:
+            prompt_groups.append(gen.get("group_id", str(gen["idx"] // 4)))
+        else:
+            prompt_groups.append(str(gen["idx"] // 4))
 
         for model_entry in models:
             model_label_lists[model_entry.name].append(verdicts[model_entry.name])

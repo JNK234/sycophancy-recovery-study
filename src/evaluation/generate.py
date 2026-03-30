@@ -207,6 +207,8 @@ def _save_generations(results: list[dict], path: str, append: bool = False) -> N
                 "template_type": r.get("template_type", ""),
                 "sub_dataset": r.get("sub_dataset", ""),
                 "seen": r.get("seen", False),
+                "prompt_id": r.get("prompt_id", ""),
+                "group_id": r.get("group_id", ""),
             }
             if "pass1_letter" in r:
                 row["pass1_letter"] = r["pass1_letter"]

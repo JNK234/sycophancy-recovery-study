@@ -27,6 +27,8 @@ class FeedbackEvaluator(BaseEvaluator):
                 "sub_dataset": row["base"]["dataset"],
                 "base": row["base"],
                 "seen": row.get("seen", False),
+                "prompt_id": row.get("prompt_id", ""),
+                "group_id": row.get("group_id", ""),
             })
         return prompts
 
@@ -42,6 +44,7 @@ class FeedbackEvaluator(BaseEvaluator):
                 "idx": gen["idx"],
                 "messages": [{"role": "user", "content": prompt_text}],
                 "schema": FeedbackVerdict,
+                "prompt_id": gen.get("prompt_id", ""),
             })
         return judge_prompts
 
