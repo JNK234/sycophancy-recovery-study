@@ -128,10 +128,12 @@ def _visualize_only(config: ProbingConfig):
     from src.probing.visualize import generate_all_plots
 
     results = {}
-    for key in ["per_model", "cross_model_transfer", "direction_similarity"]:
+    # Load all available result sections (handles new sections like "control")
+    for key in ["per_model", "cross_model_transfer", "direction_similarity", "control", "ablation"]:
         path = os.path.join(config.results_dir, f"{key}.json")
-        with open(path) as f:
-            results[key] = json.load(f)
+        if os.path.exists(path):
+            with open(path) as f:
+                results[key] = json.load(f)
 
     generate_all_plots(results, config.results_dir)
     print("Plots regenerated.")

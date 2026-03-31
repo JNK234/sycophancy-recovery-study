@@ -1,5 +1,5 @@
 # ABOUTME: Visualization for probing results.
-# ABOUTME: Generates per-layer AUROC curves, cross-model heatmaps, and direction similarity plots.
+# ABOUTME: Generates per-layer AUROC curves with CI bands, control floor, and direction similarity plots.
 
 from __future__ import annotations
 
@@ -12,7 +12,11 @@ import matplotlib.pyplot as plt
 
 
 def plot_layer_auroc_curves(results: dict, output_dir: str) -> None:
-    """Plot AUROC vs layer number for per-model probes and cross-model transfer."""
+    """Plot AUROC vs layer number for per-model probes and cross-model transfer.
+
+    Includes bootstrap CI error bands and random-label control noise floor
+    when available in the results.
+    """
     os.makedirs(output_dir, exist_ok=True)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
@@ -21,13 +25,39 @@ def plot_layer_auroc_curves(results: dict, output_dir: str) -> None:
     for model_name, metrics in results["per_model"].items():
         layers = sorted(int(l) for l in metrics["per_layer"].keys())
         aurocs = [metrics["per_layer"][str(l)]["auroc"] for l in layers]
-        ax1.plot(layers, aurocs, marker="o", markersize=3, label=model_name)
+        line, = ax1.plot(layers, aurocs, marker="o", markersize=3, label=model_name)
+
+        # CI bands if available
+        first_layer = metrics["per_layer"][str(layers[0])]
+        if "auroc_ci_lower" in first_layer:
+            ci_lower = [metrics["per_layer"][str(l)]["auroc_ci_lower"] for l in layers]
+            ci_upper = [metrics["per_layer"][str(l)]["auroc_ci_upper"] for l in layers]
+            ax1.fill_between(layers, ci_lower, ci_upper,
+                             alpha=0.12, color=line.get_color())
+
+        # Annotate peak layer
+        peak_layer = metrics.get("peak_layer")
+        peak_auroc = metrics.get("peak_auroc")
+        if peak_layer is not None:
+            ax1.axvline(x=peak_layer, color=line.get_color(),
+                        linestyle=":", alpha=0.3, linewidth=1)
+
+    # Control noise floor
+    if "control" in results:
+        ctrl = results["control"]
+        ctrl_layers = sorted(int(l) for l in ctrl["per_layer"].keys())
+        ctrl_means = [ctrl["per_layer"][str(l)]["mean_control_auroc"] for l in ctrl_layers]
+        ctrl_stds = [ctrl["per_layer"][str(l)]["std_control_auroc"] for l in ctrl_layers]
+        ctrl_lower = [m - 2 * s for m, s in zip(ctrl_means, ctrl_stds)]
+        ctrl_upper = [m + 2 * s for m, s in zip(ctrl_means, ctrl_stds)]
+        ax1.fill_between(ctrl_layers, ctrl_lower, ctrl_upper,
+                         alpha=0.08, color="gray", label="control (shuffled)")
 
     ax1.set_xlabel("Layer")
     ax1.set_ylabel("AUROC")
     ax1.set_title("Per-Model Probe AUROC by Layer")
     ax1.axhline(y=0.5, color="gray", linestyle="--", alpha=0.5, label="chance")
-    ax1.legend()
+    ax1.legend(fontsize=8)
     ax1.set_ylim(0.4, 1.05)
     ax1.grid(alpha=0.3)
 
@@ -35,13 +65,22 @@ def plot_layer_auroc_curves(results: dict, output_dir: str) -> None:
     for key, metrics in results["cross_model_transfer"].items():
         layers = sorted(int(l) for l in metrics["per_layer"].keys())
         aurocs = [metrics["per_layer"][str(l)]["auroc"] for l in layers]
-        ax2.plot(layers, aurocs, marker="s", markersize=3, linestyle="--", label=key)
+        line, = ax2.plot(layers, aurocs, marker="s", markersize=3,
+                         linestyle="--", label=key)
+
+        # CI bands if available
+        first_layer = metrics["per_layer"][str(layers[0])]
+        if "auroc_ci_lower" in first_layer:
+            ci_lower = [metrics["per_layer"][str(l)]["auroc_ci_lower"] for l in layers]
+            ci_upper = [metrics["per_layer"][str(l)]["auroc_ci_upper"] for l in layers]
+            ax2.fill_between(layers, ci_lower, ci_upper,
+                             alpha=0.12, color=line.get_color())
 
     ax2.set_xlabel("Layer")
     ax2.set_ylabel("AUROC")
     ax2.set_title("Cross-Model Transfer AUROC by Layer")
     ax2.axhline(y=0.5, color="gray", linestyle="--", alpha=0.5, label="chance")
-    ax2.legend()
+    ax2.legend(fontsize=8)
     ax2.set_ylim(0.4, 1.05)
     ax2.grid(alpha=0.3)
 

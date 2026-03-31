@@ -51,6 +51,22 @@ class ProbeConfig:
 
 
 @dataclass
+class BootstrapConfig:
+    """Bootstrap CI and permutation test settings."""
+    enabled: bool = True
+    n_iterations: int = 1000
+    confidence_level: float = 0.95
+    seed: int = 42
+
+
+@dataclass
+class ControlConfig:
+    """Random-label control probe settings."""
+    enabled: bool = True
+    n_seeds: int = 10
+
+
+@dataclass
 class ProbingConfig:
     """Top-level probing config."""
     name: str
@@ -62,6 +78,8 @@ class ProbingConfig:
     probe: ProbeConfig = field(default_factory=ProbeConfig)
     reference_model: str = "sft"
     seed: int = 42
+    bootstrap: BootstrapConfig = field(default_factory=BootstrapConfig)
+    control: ControlConfig = field(default_factory=ControlConfig)
 
     @classmethod
     def from_yaml(cls, path: str) -> ProbingConfig:
@@ -92,6 +110,8 @@ class ProbingConfig:
             probe=ProbeConfig(**raw.get("probe", {})),
             reference_model=raw.get("reference_model", "sft"),
             seed=raw.get("seed", 42),
+            bootstrap=BootstrapConfig(**raw.get("bootstrap", {})),
+            control=ControlConfig(**raw.get("control", {})),
         )
 
     def save_yaml(self, path: str) -> None:
