@@ -507,4 +507,83 @@ When running with `accelerate launch` (4 processes), the merge step can fail or 
 
 ---
 
+## IPO (Identity Preference Optimization)
+
+### IPO is a config-only change from DPO in TRL
+
+IPO is supported natively by TRL's `DPOTrainer` via `loss_type="ipo"`. No new trainer class, no code changes — just set `dpo.loss_type: "ipo"` in the YAML config and keep `experiment.method: "dpo"`. The `DPORecoveryTrainer` passes `loss_type` directly to `DPOConfig`.
+
+### IPO loss starts at ~25, not 0.693 — this is correct
+
+DPO's sigmoid loss starts at `ln(2) ≈ 0.693`. IPO's squared loss starts at `(0 - 1/(2*beta))²`. With beta=0.1, that's `(0 - 5)² = 25`. Do NOT compare loss magnitudes between DPO and IPO — they're fundamentally different scales.
+
+### IPO's beta IS tau from the paper — and it controls something different
+
+In TRL, the `beta` parameter is reused for IPO but means something different. It's the tau parameter from Azar et al. (2024). It sets the target margin as `1/(2*tau)`:
+- beta=0.01 → target margin 50 (less regularization, larger gap allowed)
+- beta=0.1 → target margin 5 (moderate)
+- beta=0.5 → target margin 1 (strong regularization)
+
+**Counter-intuitive:** smaller beta = less regularization for IPO (opposite intuition from DPO).
+
+### IPO is much more beta-sensitive than DPO
+
+HF blog found optimal IPO beta=0.01, others found 0.1-0.5. The sweet spot varies significantly by dataset. For our fair comparison we matched DPO's beta=0.1, but may need to sweep {0.01, 0.05} if convergence is suboptimal.
+
+### IPO prevents deterministic policy collapse on near-deterministic preferences
+
+DPO's sigmoid saturates — when chosen always wins (like our sycophancy data), gradient vanishes and KL regularization is effectively bypassed. IPO's squared loss never saturates: quadratic penalty grows at extremes, enforcing the KL constraint. This is the theoretical motivation for expecting deeper representation changes.
+
+### IPO dryrun validated successfully
+
+- Config loads via existing DPO pipeline, no code changes
+- Loss ~25 at step 0, decreasing through 5 steps
+- Rewards/accuracies climbing 0→0.625 in 5 steps
+- Adapter saves and merges correctly
+
+### IPO is structurally mismatched for near-deterministic preferences
+
+Sweep across β ∈ {0.1, 0.5, 1.0} and LR ∈ {2e-5, 5e-6} revealed a fundamental issue:
+
+- **Low β (0.1):** Good sycophancy recovery (syc_gap 0.067) but margins explode to 35 (target 5), causing capability degradation (plain accuracy 0.466 vs baseline 0.616)
+- **High β (0.5, 1.0):** Margins more controlled (19-40) but sycophancy barely reduced (syc_gap 0.22-0.26 after 193 steps)
+
+The core problem: IPO's squared loss penalizes going "too far" from the target margin. But for near-deterministic preferences (sycophantic vs non-sycophantic is always clear), the model NEEDS to make large changes. DPO's sigmoid saturates and lets the model push hard; IPO's quadratic actively fights this.
+
+**Lesson:** IPO is designed for noisy preference data where overfitting is the risk. For clear-cut behavioral recovery tasks, DPO's aggressive optimization is actually an advantage, not a bug.
+
+---
+
+## Statistical Rigor for Linear Probing (Experiment 007e/f)
+
+### Bootstrap CIs tell you precision, permutation tests tell you significance
+
+Bootstrap CIs (resample val set 200+ times) give you error bars: "the true AUROC is probably between X and Y." But they don't answer "is this above chance?" For that you need permutation tests (shuffle labels, compute AUROC under null hypothesis). Both are cheap to compute — the bottleneck is elsewhere.
+
+### Max-statistic correction is essential when picking "best layer"
+
+We probe 36 layers and report the peak. But picking the best of 36 tests inflates false positives. The max-statistic permutation test corrects for this: for each permutation, take the MAX AUROC across all layers, build a null distribution of maxima, compare observed peak to that.
+
+Result: SFT→DPO peak survived correction (p=0.005), but SFT→SimPO peak did NOT (uncorrected p=0.005, corrected p=0.154). Without correction, we would have falsely claimed SimPO's peak transfer was significant. The mean transfer (0.429) is the more honest metric.
+
+### Random-label control reveals noise floor > 0.5
+
+Training probes on shuffled labels yielded 0.578 ± 0.021 AUROC — above the theoretical 0.5 chance level. With 4096 features and only 400 training samples, logistic regression can fit noise. This means AUROCs between 0.5-0.58 are indistinguishable from noise. All our real results (0.68+) are well above this floor, but it's important context.
+
+### Sycophancy is multi-directional, not one linear direction
+
+Probe-space ablation: remove the primary probe direction, retrain a fresh probe on the ablated activations. All models recovered 0.73-0.81 AUROC after removing the top direction — sycophancy information is spread across multiple orthogonal directions, not concentrated in one.
+
+IPO was the extreme: retrained AUROC (0.814) equaled the original (0.811). Removing the primary direction had zero effect — the signal is fully distributed. This is consistent with IPO's aggressive gradient flow restructuring representations broadly rather than concentrating changes in a single direction.
+
+### Control probes are the compute bottleneck, not bootstrap
+
+Bootstrap evaluation (predict_proba + roc_auc_score in a loop) is fast (~0.2s for 200 iterations). But control probes train fresh LogisticRegression on shuffled labels: n_seeds × 36 layers logistic regressions on 4096-dim data. With max_iter=2000, each takes ~5-8 seconds. 10 seeds × 36 = 360 trainings = ~30-45 min. Use n_seeds=3 for development, increase for publication.
+
+### Always use PYTHONUNBUFFERED=1 for background probing runs
+
+Python buffers stdout when not attached to a terminal. Background probing runs appear stuck (no output for hours) even though they're making progress. Setting `PYTHONUNBUFFERED=1` fixes this.
+
+---
+
 <!-- Add new learnings as we encounter them -->

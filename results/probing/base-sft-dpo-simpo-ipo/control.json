@@ -1,0 +1,152 @@
+{
+  "reference_model": "sft",
+  "per_layer": {
+    "0": {
+      "mean_control_auroc": 0.5526984126984127,
+      "std_control_auroc": 0.047768548388741644
+    },
+    "1": {
+      "mean_control_auroc": 0.5485714285714285,
+      "std_control_auroc": 0.007569281915915127
+    },
+    "2": {
+      "mean_control_auroc": 0.5615873015873016,
+      "std_control_auroc": 0.029918845468783227
+    },
+    "3": {
+      "mean_control_auroc": 0.5401587301587302,
+      "std_control_auroc": 0.0008093681767607813
+    },
+    "4": {
+      "mean_control_auroc": 0.542063492063492,
+      "std_control_auroc": 0.007172776842980944
+    },
+    "5": {
+      "mean_control_auroc": 0.5404761904761904,
+      "std_control_auroc": 0.021773242158072692
+    },
+    "6": {
+      "mean_control_auroc": 0.5549206349206349,
+      "std_control_auroc": 0.0047513109673319506
+    },
+    "7": {
+      "mean_control_auroc": 0.5725396825396825,
+      "std_control_auroc": 0.022825153982415754
+    },
+    "8": {
+      "mean_control_auroc": 0.5663492063492064,
+      "std_control_auroc": 0.01167287384815888
+    },
+    "9": {
+      "mean_control_auroc": 0.5844444444444444,
+      "std_control_auroc": 0.011391031820958238
+    },
+    "10": {
+      "mean_control_auroc": 0.5782539682539682,
+      "std_control_auroc": 0.02581500947188979
+    },
+    "11": {
+      "mean_control_auroc": 0.5688888888888889,
+      "std_control_auroc": 0.04259236254826304
+    },
+    "12": {
+      "mean_control_auroc": 0.5773015873015872,
+      "std_control_auroc": 0.031085995693300356
+    },
+    "13": {
+      "mean_control_auroc": 0.5685714285714285,
+      "std_control_auroc": 0.039648874608840326
+    },
+    "14": {
+      "mean_control_auroc": 0.5657142857142857,
+      "std_control_auroc": 0.03504667010447556
+    },
+    "15": {
+      "mean_control_auroc": 0.5680952380952381,
+      "std_control_auroc": 0.03614240750917594
+    },
+    "16": {
+      "mean_control_auroc": 0.5792063492063493,
+      "std_control_auroc": 0.019426133263342176
+    },
+    "17": {
+      "mean_control_auroc": 0.5950793650793651,
+      "std_control_auroc": 0.0287726599604433
+    },
+    "18": {
+      "mean_control_auroc": 0.5866666666666666,
+      "std_control_auroc": 0.01486141574697831
+    },
+    "19": {
+      "mean_control_auroc": 0.5876190476190476,
+      "std_control_auroc": 0.03831089750612572
+    },
+    "20": {
+      "mean_control_auroc": 0.583015873015873,
+      "std_control_auroc": 0.06182697595635974
+    },
+    "21": {
+      "mean_control_auroc": 0.579047619047619,
+      "std_control_auroc": 0.06551499571581486
+    },
+    "22": {
+      "mean_control_auroc": 0.5944444444444444,
+      "std_control_auroc": 0.08958654786899037
+    },
+    "23": {
+      "mean_control_auroc": 0.5779365079365079,
+      "std_control_auroc": 0.0843725078483794
+    },
+    "24": {
+      "mean_control_auroc": 0.5744444444444444,
+      "std_control_auroc": 0.07478498615831194
+    },
+    "25": {
+      "mean_control_auroc": 0.5788888888888889,
+      "std_control_auroc": 0.06509988062233357
+    },
+    "26": {
+      "mean_control_auroc": 0.5684126984126984,
+      "std_control_auroc": 0.05401818418575475
+    },
+    "27": {
+      "mean_control_auroc": 0.5834920634920634,
+      "std_control_auroc": 0.04725629023199237
+    },
+    "28": {
+      "mean_control_auroc": 0.5958730158730158,
+      "std_control_auroc": 0.06801841968894604
+    },
+    "29": {
+      "mean_control_auroc": 0.6171428571428571,
+      "std_control_auroc": 0.05186761449215276
+    },
+    "30": {
+      "mean_control_auroc": 0.626984126984127,
+      "std_control_auroc": 0.03813556067051219
+    },
+    "31": {
+      "mean_control_auroc": 0.6174603174603175,
+      "std_control_auroc": 0.02626204746995529
+    },
+    "32": {
+      "mean_control_auroc": 0.6095238095238095,
+      "std_control_auroc": 0.07057586259446198
+    },
+    "33": {
+      "mean_control_auroc": 0.5844444444444444,
+      "std_control_auroc": 0.09504451225425788
+    },
+    "34": {
+      "mean_control_auroc": 0.5933333333333334,
+      "std_control_auroc": 0.11103580214291597
+    },
+    "35": {
+      "mean_control_auroc": 0.5938095238095239,
+      "std_control_auroc": 0.08422067259955658
+    }
+  },
+  "overall_mean": 0.5782627865961198,
+  "overall_std": 0.020606952435582266,
+  "n_seeds": 3
+}

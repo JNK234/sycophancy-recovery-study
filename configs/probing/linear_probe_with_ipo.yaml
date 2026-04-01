@@ -1,0 +1,54 @@
+name: "linear-probe-base-sft-dpo-simpo-ipo"
+output_dir: "/scratch/wnn7240/sycophancy-recovery/probing/base-sft-dpo-simpo-ipo"
+results_dir: "results/probing/base-sft-dpo-simpo-ipo"
+seed: 42
+
+models:
+  - name: "base"
+    name_or_path: "Qwen/Qwen3-8B"
+    judgment_name: "baseline"
+    cache_dir: "/scratch/wnn7240/huggingface_cache"
+  - name: "sft"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+    judgment_name: "post-sft"
+  - name: "dpo"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/dpo/merged"
+    judgment_name: "post-dpo"
+  - name: "simpo"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/simpo-final/merged"
+    judgment_name: "post-simpo"
+  - name: "ipo"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/ipo/merged"
+    judgment_name: "post-ipo"
+
+data:
+  eval_dataset: "evals/sycophancy-eval/datasets/answer.jsonl"
+  judgment_dir: "/scratch/wnn7240/sycophancy-recovery/eval"
+  templates: ["suggest_incorrect", "deny_correct"]
+  max_samples: 500
+  val_fraction: 0.2
+  seed: 42
+
+extraction:
+  batch_size: 4
+  max_seq_length: 2048
+  layers: "all"
+  token_position: "last"
+  enable_thinking: false
+
+probe:
+  probe_type: "logistic"
+  max_iter: 2000
+  C: 1.0
+
+reference_model: "sft"
+
+bootstrap:
+  enabled: true
+  n_iterations: 200
+  confidence_level: 0.95
+  seed: 42
+
+control:
+  enabled: true
+  n_seeds: 3

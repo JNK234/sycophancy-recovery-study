@@ -1,0 +1,47 @@
+{
+  "base": {
+    "peak_layer": 20,
+    "auroc_original": 0.9049193881769327,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.40491938817693274,
+    "direction_norm": 5.849933224261147,
+    "auroc_retrained": 0.7416287722199256,
+    "accuracy_retrained": 0.69
+  },
+  "sft": {
+    "peak_layer": 17,
+    "auroc_original": 0.8223809523809524,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.32238095238095243,
+    "direction_norm": 7.784509069147601,
+    "auroc_retrained": 0.7433333333333333,
+    "accuracy_retrained": 0.75
+  },
+  "dpo": {
+    "peak_layer": 22,
+    "auroc_original": 0.8627450980392156,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.3627450980392156,
+    "direction_norm": 6.32329999200546,
+    "auroc_retrained": 0.807923169267707,
+    "accuracy_retrained": 0.75
+  },
+  "simpo": {
+    "peak_layer": 19,
+    "auroc_original": 0.7942857142857143,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.29428571428571426,
+    "direction_norm": 6.725644447981301,
+    "auroc_retrained": 0.7309890109890109,
+    "accuracy_retrained": 0.67
+  },
+  "ipo": {
+    "peak_layer": 3,
+    "auroc_original": 0.8111658456486043,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.3111658456486043,
+    "direction_norm": 7.342462036820174,
+    "auroc_retrained": 0.8144499178981938,
+    "accuracy_retrained": 0.7
+  }
+}

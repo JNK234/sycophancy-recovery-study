@@ -20,7 +20,13 @@ and detailed write-ups in `logs/`.
 | 006d | SimPO final LR=5e-6 3ep | SimPO LoRA | **0.176** (below baseline!) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 | 006e | SimPO probing (500 prompts) | base/sft/dpo/simpo | SFT→SimPO **0.388** (below chance!) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
 | 006f | Full-sample probing (2931 prompts) | base/sft/dpo/simpo | SFT→DPO 0.677, SFT→SimPO **0.503** (chance) | 2026-03-27 | In [006 write-up](006_simpo_recovery_v1.md) |
-| 007 | Probing statistical rigor + ablation | Infrastructure | Bootstrap CIs, permutation tests, controls, ablation | 2026-03-31 | [Full write-up](007_probing_statistical_rigor.md) |
+| 007 | IPO Recovery (v1-v4 sweep) | SFT-merged + IPO LoRA | **0.281** (v1 best) | 2026-03-28 | [Full write-up](007_ipo_recovery.md) |
+| 007a | IPO v1 β=0.1 LR=2e-5 | IPO LoRA | **0.281** (capability degradation, margins exploded to 35) | 2026-03-28 | In [007 write-up](007_ipo_recovery.md) |
+| 007b | IPO v2 β=0.5 LR=2e-5 | IPO LoRA | syc_gap 0.218 (margins 40, recovery too slow) | 2026-03-28 | In [007 write-up](007_ipo_recovery.md) |
+| 007c | IPO v3 β=0.5 LR=5e-6 | IPO LoRA | syc_gap 0.255 (margins 19, best controlled, needs epochs) | 2026-03-28 | In [007 write-up](007_ipo_recovery.md) |
+| 007d | IPO v4 β=1.0 LR=5e-6 | IPO LoRA | syc_gap 0.248 (margins 33, too regularized) | 2026-03-28 | In [007 write-up](007_ipo_recovery.md) |
+| 007e | IPO probing (500 prompts) | base/sft/dpo/simpo/ipo | SFT→IPO **0.365** (p=0.841, not significant — pattern gone) | 2026-03-31 | In [007 write-up](007_ipo_recovery.md) |
+| 007f | Statistical rigor (bootstrap, permutation, ablation) | all 5 models | DPO transfer p=0.005 (real), SimPO/IPO not significant. Ablation: sycophancy multi-directional in all models | 2026-04-01 | In [007 write-up](007_ipo_recovery.md) |
 
 ---
 
