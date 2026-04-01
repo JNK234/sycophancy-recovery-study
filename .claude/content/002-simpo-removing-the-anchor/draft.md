@@ -1,16 +1,18 @@
-# I Removed the Reference Model. The Sycophancy Probe Dropped to Chance.
+# DPO Hides Sycophancy. SimPO Reorganizes It.
 
 *Part 2 of a series on sycophancy recovery — comparing alignment techniques from the inside out, using behavioral evaluation and mechanistic interpretability. [Part 1: DPO](https://jnk234.github.io/posts/sycophancy-recovery-dpo/)*
 
 ---
 
-Last post, I showed that DPO suppresses sycophancy on the surface but leaves the internal representation intact. A probe trained on the sycophantic model's hidden states still fired on the DPO model — AUROC 0.677, well above the 0.611 baseline. The model relearned sycophancy in 5 gradient steps. The wiring survived.
+Fine-tuning a model to remove an unwanted behavior like sycophancy can be deceptive. Direct Preference Optimization (DPO) can successfully teach a model to stop *acting* sycophantic on the surface, but this is often just a mask. When we look deeper, the underlying neural circuitry for that behavior often remains perfectly intact.
 
-The obvious next question: what if you remove the thing holding the model back?
+In previous experiments, a diagnostic probe trained to detect sycophancy in a model's hidden states could still find a clear signal after DPO fine-tuning — AUROC 0.677, well above baseline. The model hadn't unlearned the trait; it had just learned to suppress it. This raises a critical question: what if the fine-tuning process itself is preserving that unwanted wiring?
 
-DPO anchors every gradient step to a frozen copy of the sycophantic model. SimPO ([Meng et al., 2024](https://arxiv.org/abs/2405.14734)) drops that anchor entirely. I ran it on the same 3,074 preference pairs, the same sycophantic model, the same evaluation pipeline. The behavioral results went below baseline — 0.176 vs the original 0.256. The sycophancy probe dropped to chance.
+DPO works by anchoring every update to a frozen copy of the original, flawed model. It teaches new behavior while constantly reminding the model of its old self. What happens if we remove that anchor?
 
-The SFT sycophancy direction is no longer linearly accessible in SimPO. Whatever signal the probe was exploiting is no longer aligned the same way.
+A simpler method called SimPO ([Meng et al., 2024](https://arxiv.org/abs/2405.14734)) does exactly that — it drops the reference model entirely. I ran it on the same 3,074 preference pairs, the same sycophantic model, the same evaluation pipeline. The behavioral results went *below* baseline — 0.176 vs the original 0.256. And the internal probe dropped to chance.
+
+The sycophancy direction that DPO preserved is no longer linearly detectable in SimPO. The signal wasn't erased — it was reorganized.
 
 ---
 
@@ -123,6 +125,8 @@ I applied the same probing protocol from Post 1. Logistic regression probes trai
 
 DPO sits above the base model on a signal I'd expect to be absent if DPO had truly eliminated the SFT-induced representation. SimPO sits near chance — within noise of 0.5, the SFT sycophancy direction provides little to no linear transfer signal.
 
+**Statistical rigor confirms this isn't noise.** The raw peak AUROC for SFT→SimPO transfer is 0.633 — looks above chance. But I scanned 36 layers, and the maximum of 36 random draws is itself a random variable. A permutation test (200 shuffles, max-statistic correction) gives the corrected p-value: **0.154**. The transfer is not statistically significant. For comparison, SFT→DPO transfer has corrected p=0.005 — genuinely significant. The SFT sycophancy pattern persists in DPO with statistical confidence. In SimPO, the "peak" is indistinguishable from cherry-picking noise.
+
 There's a second line of evidence. Each probe learns a "sycophancy direction" — a single vector in the model's 4,096-dimensional activation space that best separates sycophantic from honest behavior. If two models encode sycophancy the same way internally, their probe vectors should point in the same direction. Cosine similarity measures this: 1.0 means identical encoding, 0.0 means the models organized the concept in completely unrelated directions.
 
 - SFT vs DPO: cosine **0.210** — partially shared direction. DPO modified but didn't fully reorganize how sycophancy is represented.
@@ -130,9 +134,19 @@ There's a second line of evidence. Each probe learns a "sycophancy direction" �
 
 DPO suppresses at the output. SimPO reorganizes internally. The sycophancy direction that SFT created — the same direction that persisted through DPO — is not detectable by our linear probes after SimPO.
 
+![SFT probe transfer to each model. DPO shows significant transfer (corrected p=0.005). SimPO's "peak" 0.633 is indistinguishable from noise after multiple-comparison correction (p=0.154). Dashed lines show null 95th percentile.](figures/fig2_probe_transfer_v2.png)
+
+![SFT and SimPO encode sycophancy in nearly orthogonal directions (cosine 0.082). DPO partially shares the SFT direction (0.210).](figures/fig3_direction_similarity.png)
+
+**Ablation reveals multi-directional encoding.** After projecting out the primary sycophancy direction from SimPO's peak layer and retraining a fresh probe, the AUROC recovered to 0.731. Sycophancy isn't concentrated in a single direction — it's distributed across multiple orthogonal directions. SimPO reorganized the geometry, but the signal isn't erased, just redistributed. This makes sense: a 4,096-dimensional residual stream can encode the same concept in many linearly independent ways.
+
+![After removing the primary sycophancy direction, fresh probes recover to 0.73-0.81 AUROC. The signal is multi-directional in all models.](figures/fig4_ablation.png)
+
+This geometric reorganization may be a natural consequence of SimPO's loss function. Unlike DPO, SimPO lacks an explicit dependence on a reference model policy — nothing anchors it to the SFT solution's internal geometry. The optimizer has more freedom to wander, and when it finds a solution, it may take a path through parameter space that reshapes how concepts are encoded. The sycophancy behavior is suppressed at the output, but the residual representation gets re-encoded in a form our linear probes can no longer detect.
+
 A critical caveat: linear probing tells us a representation exists or doesn't — not whether the model causally uses it. SimPO's probe dropping to chance could mean the sycophancy representation was genuinely removed. Or it could mean the information was reorganized into a nonlinear form our probes can't detect. Activation patching — corrupting the direction and measuring whether behavior changes — would distinguish these cases. That's future work.
 
-![The SFT sycophancy probe transfers to DPO (0.677) but drops to chance on SimPO (0.503). The representation that survived DPO doesn't survive SimPO.](figures/fig2_probe_transfer.png)
+Two scope notes: this analysis focuses on sycophancy specifically — other behaviors learned during SFT may follow different patterns. And it was conducted on Qwen3-8B; whether reference-free methods produce similar representational reorganization at other scales remains to be tested.
 
 ---
 

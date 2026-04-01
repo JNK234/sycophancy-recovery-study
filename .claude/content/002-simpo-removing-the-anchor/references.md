@@ -58,6 +58,20 @@ Every quantitative claim in the draft must have a row here.
 | SimPO own AUROC (full) | 0.750 | results/probing/base-sft-dpo-simpo-full/summary.json | mean AUROC | 2,931 | — |
 | SFT own AUROC (full) | 0.804 | results/probing/base-sft-dpo-simpo-full/summary.json | same | 2,931 | — |
 
+## Statistical Rigor (new in experiment 007)
+
+| Claim | Value | Source File | Metric Definition | N | Notes |
+|-------|-------|-------------|-------------------|---|-------|
+| SFT→SimPO peak AUROC | 0.633 | results/probing/base-sft-dpo-simpo-ipo/cross_model_transfer.json | max across 36 layers | 2,931 | Uncorrected |
+| SFT→SimPO corrected p-value | 0.154 | results/probing/base-sft-dpo-simpo-ipo/cross_model_transfer.json | max-statistic permutation test | 200 shuffles | **Not significant** |
+| SFT→DPO corrected p-value | 0.005 | results/probing/base-sft-dpo-simpo-ipo/cross_model_transfer.json | same | 200 | **Significant** |
+| SFT→Base corrected p-value | 0.005 | results/probing/base-sft-dpo-simpo-ipo/cross_model_transfer.json | same | 200 | Significant |
+| Null peak 95th percentile | 0.659 | results/probing/base-sft-dpo-simpo-ipo/summary.json | 95th percentile of null distribution | 200 | SimPO peak below this |
+| Random-label control mean AUROC | 0.578 ± 0.021 | results/probing/base-sft-dpo-simpo-ipo/control.json | shuffled labels, 10 seeds | 400 samples/seed | Noise floor |
+| SimPO ablation: original AUROC | 0.794 | results/probing/base-sft-dpo-simpo-ipo/ablation.json | peak layer probe | — | Layer 19 |
+| SimPO ablation: after projection | 0.500 | same | project out primary direction | — | Drops to chance |
+| SimPO ablation: retrained | 0.731 | same | fresh probe on ablated activations | — | Multi-directional signal |
+
 ## Training Details
 
 | Claim | Value | Source File | Notes |

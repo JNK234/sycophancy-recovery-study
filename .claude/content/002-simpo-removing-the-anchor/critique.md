@@ -33,6 +33,27 @@
 4. **Break out "It's gone" as its own paragraph** in the intro for impact.
 5. **Specify probe layer** — "all 36 layers, mean AUROC" or similar.
 
+---
+
+## Update 2026-04-01: Statistical Rigor Pass
+
+### Gemini-2.5-Pro Review — Rating: 9/10
+
+**Strengths:**
+- Statistical claims correctly presented (corrected p-values, max-statistic)
+- "Expected X, found Y, but the real reason is Z" structure is effective
+- Ablation pivot from "not significant" to "multi-directional" is narratively strong
+- Distinction between "not significant" and "zero effect" is clear
+
+**Recommendations Applied:**
+1. ✅ Added mechanism connection: SimPO's lack of reference model gives it "more freedom to wander" and reorganize geometry
+2. ✅ Added scope limitations: sycophancy-specific, Qwen3-8B only, linear probe limitations
+
+**Recommendations Not Applied:**
+- 200 shuffles noted as potentially low for formal paper, but sufficient for blog — no change needed
+
+---
+
 ## Edits to Apply
 
 ### Must-fix (accuracy/principle violations)
@@ -51,3 +72,9 @@
 - [ ] Move hyperparameter section after behavioral results (or keep — it's a judgment call)
 - [ ] Break "It's gone" into its own paragraph
 - [ ] Add methodology footnote or end-of-post appendix
+
+### Applied 2026-04-01
+- [x] Add statistical significance section (corrected p-values)
+- [x] Add ablation results (multi-directional encoding)
+- [x] Add mechanism connection (SimPO's reference-free nature)
+- [x] Add scope limitations (sycophancy-specific, model-specific)
