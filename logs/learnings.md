@@ -4,6 +4,28 @@ Running log of how things work, why we made specific choices, and gotchas encoun
 
 ---
 
+## Statistical Rigor for Linear Probing (2026-03-31)
+
+### "CI contains 0.5" ≠ "is chance"
+Saying "the CI includes 0.5, so it's chance" is a common mistake. That only means "not significantly different from chance" (failure to reject). To claim equivalence, the CI must fall entirely within a pre-defined tolerance band [0.5-delta, 0.5+delta]. A permutation test (p-value) is more direct: it answers "is this above chance?" without the equivalence ambiguity.
+
+### Stratified bootstrap avoids single-class resamples
+Naive bootstrap can produce all-positive or all-negative resamples (AUROC undefined). Resample positives and negatives separately. This also gives tighter CIs because the class ratio is preserved.
+
+### Scanning layers inflates peak AUROC
+If you scan 36 layers and report the best, you're doing 36 implicit hypothesis tests. The max-statistic permutation test (shuffle labels, compute AUROC at ALL layers, take the max, repeat 1000 times) gives a proper null distribution for the peak. SimPO's peak of 0.652 may or may not survive this correction.
+
+### sklearn's roc_auc_score returns 1.0 for tied predictions
+When all predicted probabilities are identical (e.g., after projecting out the probe's weight direction), `roc_auc_score` returns 1.0 due to tie-handling. This is a known edge case. Detect via `np.std(probs) < 1e-6` and report 0.5 (chance) instead.
+
+### Permutation test p-value needs +1 adjustment
+The correct formula is `(count_ge + 1) / (n_permutations + 1)`, not `count_ge / n_permutations`. Without +1, the p-value can hit exactly 0.0, which is not a valid finite-sample p-value. This is standard practice (Phipson & Smyth, 2010).
+
+### Probe-space ablation: retrain-after-ablation is the real test
+Projecting out the probe direction and re-evaluating with the same probe is near-tautological (you removed what it was looking at). The meaningful test is: train a FRESH probe on the ablated activations. If it still finds signal, sycophancy is encoded in multiple directions. If it drops to chance, the single direction was everything.
+
+---
+
 ## GPU Parallelism for LLM Training
 
 ### What's happening in our SFT training
