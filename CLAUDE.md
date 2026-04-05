@@ -25,31 +25,40 @@ This applies to EVERYTHING — not just libraries, but techniques, hyperparamete
 4. **Present options to user** — "Here's what I found, here are the tradeoffs, here's my recommendation"
 5. **Then plan and implement** — Based on verified info, not assumptions
 
-Existing research files:
-- `.claude/research/training-libraries-research.md` — TRL/PEFT/transformers specifics
-- `.claude/research/eval-system-research.md` — vLLM eval system design
-- `.claude/research/alignment-techniques-survey.md` — Full survey of alignment techniques (DPO variants, RLHF, CAI, activation steering, mech interp)
+Research files live in `.claude/research/` — one per technique/topic (e.g., `ppo-grpo-research.md`, `simpo-research.md`, `alignment-techniques-survey.md`). Check the directory before starting work on a new technique.
 
 The principle: **question → research → verify → present → act.** Not: assume → act → debug.
 
 ### Experiment Logging (MANDATORY)
 Every experiment MUST be logged:
-1. **`logs/experiment_log.md`** — Index table with summary row per experiment
+1. **`logs/experiment_log.md`** — Index table ONLY (summary row + link to write-up). NO inlined detailed sections.
 2. **`logs/NNN_experiment_name.md`** — Detailed write-up per experiment (purpose, config, results tables, interpretation, what went wrong, next steps)
 3. **`results/eval/<run-name>/`** — Git-tracked metrics JSON files
 4. Sequential numbering: 001, 002, 003...
+5. **Wandb URL** — Always record in the write-up AND in the wandb tracking table in `experiment_log.md`
+6. **Raw training logs** — `logs/training_outputs/<name>.log` (NOT in `logs/` alongside markdown)
 
 ### Code Conventions
-- All Python source lives in `src/` (data_generation, training, evaluation)
+- All Python source lives in `src/` (data_generation, training, evaluation, probing)
 - All configs are YAML-only in `configs/` (training/, eval/)
-- `scripts/` has thin CLI entrypoints only — real logic in `src/`
+- `scripts/` has thin CLI entrypoints only — real logic in `src/`. Must add project root to `sys.path` (see existing scripts for pattern).
 - Every `.py` file starts with 2-line ABOUTME comment
 - Imports use `src.` prefix (e.g., `from src.training.config_schema import ...`)
+- Wandb project: `sycophancy-recovery`
 
 ### Before Coding
 - Plan first, get approval, then implement
 - Check `logs/learnings.md` for known gotchas before making decisions
 - Read existing code before modifying
+
+### Training Workflow Checklist (MANDATORY)
+Every training run must follow this sequence:
+
+1. **Dry run first** — 2-5 steps with `report_to: "none"`, `save_strategy: "no"`, `max_steps: 5`. Catches import errors, config mismatches, OOM before wasting GPU time.
+2. **Launch with nohup** — `PYTHONUNBUFFERED=1 nohup <command> > logs/training_outputs/<name>.log 2>&1 &`. Unbuffered output so logs stream in real-time.
+3. **Capture wandb URL** — From the training log output. Record in experiment write-up AND `experiment_log.md` tracking table.
+4. **Monitor** — `tail -f logs/training_outputs/<name>.log` or wandb dashboard. Watch for: loss decreasing, accuracy improving, no NaN, no OOM.
+5. **After training** — Create `logs/NNN_experiment_name.md` write-up. Add index row to `experiment_log.md`. Commit metrics to `results/`.
 
 ## Key Commands
 
@@ -107,17 +116,14 @@ No generation needed. Single forward pass per prompt. Build MC prompts ending wi
 | Mid-training eval | Logit extraction, not generation | Fast (single forward pass), deterministic, gives probabilities not just picks |
 | Structured output | vLLM `json=schema` (NOT `json_object=`) | `json_object` is a bool flag, `json` takes the schema dict |
 
-## Known Gotchas (read before touching)
+## Known Gotchas
+
+Common pitfalls — check these before making changes. For technique-specific gotchas (DPO, SimPO, IPO, GRPO, probing, etc.), see `logs/learnings.md`.
 
 - `git` requires `module load git` on this cluster
-- Qwen3 chat template: `enable_thinking=False` still adds empty `<think></think>` block
-- Assistant prefill in chat template: manually append after `add_generation_prompt=True`
-- vLLM guided decoding: `json=` for schema, `json_object=` is boolean only
 - Training: use `accelerate launch` for multi-GPU DDP, not plain python
 - Post-training auto-eval is fragile — prefer running eval separately via `run_eval.py`
 - `/scratch/` is not backed up — always commit metrics to `results/`
-
-For technique-specific gotchas and detailed learnings, see `logs/learnings.md`.
 
 ## Research Specs & Planning
 
