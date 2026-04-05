@@ -145,6 +145,9 @@ class RewardModelScorer:
     where completions and prompts are lists of conversation messages or strings.
     """
 
+    # GRPOTrainer accesses __name__ to label reward metrics in wandb
+    __name__ = "reward_model_scorer"
+
     def __init__(
         self,
         model_path: str,
@@ -157,7 +160,12 @@ class RewardModelScorer:
             num_labels=1,
             torch_dtype=torch.bfloat16,
         ).to(device).eval()
-        self.tokenizer = tokenizer
+        # Load RM's own tokenizer with padding configured for batch scoring
+        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self.tokenizer.pad_token = tokenizer.pad_token or "<|endoftext|>"
+        self.tokenizer.padding_side = "right"
+        # Model config also needs pad_token_id for batch inference
+        self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.device = device
         self.max_length = max_length
 

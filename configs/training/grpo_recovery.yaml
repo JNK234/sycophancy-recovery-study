@@ -29,7 +29,7 @@ data:
   max_length: 2048
 
 training:
-  num_train_epochs: 1
+  num_train_epochs: 3              # KL penalty + clipping prevent overfitting; more epochs than DPO is safe
   per_device_train_batch_size: 8   # Must be multiple of num_generations (8 gen * 1 prompt/step/device)
   gradient_accumulation_steps: 4   # Effective batch = 4 GPUs * 1 prompt * 4 accum = 16 prompts
   learning_rate: 1.0e-6           # GRPO default — conservative for RL stability
