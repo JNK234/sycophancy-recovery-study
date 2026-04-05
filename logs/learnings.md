@@ -691,6 +691,14 @@ This mirrors SimPO's failure at LR=1e-6 exactly. The GRPO/TRL default of 1e-6 is
 
 **Key diagnostic: clip ratio.** If clip_ratio stays at 0%, the LR is too low. Healthy GRPO training should show 5-20% clipping, indicating the policy is making real updates that occasionally need to be capped. 0% clipping = driving well under the speed limit.
 
+### GRPO LR=1e-5 works but overfits after epoch 1 — same as DPO
+
+GRPO v2 at LR=1e-5 showed clear behavioral improvement: syc_gap dropped 0.318 → 0.255 (best at step 200, end of epoch 1). But epochs 2-3 showed drift back to 0.265-0.275. This mirrors DPO (converged by step 50, remaining steps overfit) and SimPO (best at epoch 3 with lower LR).
+
+The pattern across all methods: **1 epoch is sufficient for sycophancy recovery with 3K data points.** Additional epochs cause reward overoptimization — the RM reward keeps increasing but behavioral metrics plateau or degrade. For GRPO specifically, completion length inflated during active learning (81 → 117 tokens at step 150) suggesting the RM may partially reward verbosity.
+
+**Practical rule for future GRPO runs:** Set `save_total_limit` high enough to keep the epoch-1 checkpoint, or use `save_steps` that captures the end of epoch 1. In v2 we lost the best checkpoint (step 200) because `save_total_limit=3` only kept steps 500/550/576.
+
 ### Papadatos & Freedman 2024: probe-augmented reward
 
 Directly relevant to our work. They train a linear probe on the reward model's hidden states to detect sycophancy (94% accuracy), then modify the reward: `R_final = R_base - λ * S_probe`. This penalizes the RM's sycophantic tendencies. We already have the probe infrastructure — this could be a natural extension for the GRPO ablation study.

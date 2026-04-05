@@ -31,6 +31,7 @@ and detailed write-ups in `logs/`.
 | 008 | Reward Model Training | SFT-merged + LoRA (SEQ_CLS) | 100% accuracy, margin +6.89 | 2026-04-04 | [Full write-up](008_reward_model_training.md) |
 | 009 | GRPO Recovery (v1-v? sweep) | SFT-merged + GRPO LoRA | TBD (sweep in progress) | 2026-04-04 | [Full write-up](009_grpo_recovery.md) |
 | 009a | GRPO v1 LR=1e-6 | GRPO LoRA | **No change** (syc_gap 0.310, clip ratio 0%) | 2026-04-04 | In [009 write-up](009_grpo_recovery.md) |
+| 009b | GRPO v2 LR=1e-5 | GRPO LoRA | **Partial recovery** (syc_gap 0.318→0.255 best, 0.265 final) | 2026-04-05 | In [009 write-up](009_grpo_recovery.md) |
 
 ### Wandb Run Tracking
 
@@ -42,6 +43,7 @@ and detailed write-ups in `logs/`.
 | 007 | IPO Recovery | https://wandb.ai/jnk789/sycophancy-recovery/runs/kyopx55a | sycophancy-recovery |
 | 008 | Reward Model | https://wandb.ai/jnk789/huggingface/runs/vc5bpifp | huggingface (should be sycophancy-recovery) |
 | 009a | GRPO v1 LR=1e-6 | https://wandb.ai/jnk789/sycophancy-recovery/runs/y33z7avr | sycophancy-recovery |
+| 009b | GRPO v2 LR=1e-5 | https://wandb.ai/jnk789/sycophancy-recovery/runs/qm2xd3px | sycophancy-recovery |
 
 ---
 
