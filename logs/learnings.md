@@ -586,4 +586,107 @@ Python buffers stdout when not attached to a terminal. Background probing runs a
 
 ---
 
+## GRPO (Group Relative Policy Optimization) — 2026-04-04
+
+### PPO is deprecated in TRL 0.29.1
+
+`PPOTrainer` has been moved to `trl.experimental.ppo` — it's no longer stable API. `from trl import PPOTrainer` fails. `GRPOTrainer` is the actively maintained RL trainer. For our study, we implement GRPO first (stable) and may add PPO later (experimental) for comparison.
+
+### PPO vs GRPO: same objective, different advantage estimation
+
+Both use the identical clipped surrogate objective: `L = min(r*A, clip(r, 1-ε, 1+ε)*A)`. The fundamental difference is how the advantage A is computed:
+
+- **PPO**: Trains a value network (critic) to predict expected return at each token position. Advantage = actual return - predicted. Gives **token-level** credit assignment via GAE (Generalized Advantage Estimation). Requires 4 models in memory: policy, reference, reward model, value head (~65 GB for 8B).
+
+- **GRPO**: Generates G completions per prompt, scores all with reward function, normalizes within group: `A_i = (r_i - mean) / std`. No critic needed. Gives **response-level** credit (all tokens in a response get same advantage). Only needs policy + reference (~25 GB with PEFT adapter switching).
+
+**Research implication for sycophancy**: If token-level credit matters (PPO finds the exact "sycophancy decision point"), PPO should produce deeper representational change. If response-level is sufficient (GRPO), the decision happens holistically, not at a specific token.
+
+### The clipping mechanism in detail
+
+PPO's clipping is **pessimistic** — it only limits beneficial updates, never blocks corrections:
+- Positive advantage + increasing ratio → capped at 1+ε (stop pushing too hard on good actions)
+- Positive advantage + decreasing ratio → no clip (let it correct freely)
+- Negative advantage + decreasing ratio → capped at 1-ε (stop penalizing too hard)
+- Negative advantage + increasing ratio → no clip (let it correct freely)
+
+This is why PPO/GRPO are more stable than vanilla policy gradients — they can't take catastrophically large steps.
+
+### KL penalty prevents reward hacking
+
+The KL penalty `β * KL(π_θ || π_ref)` anchors the policy to the reference model. Without it:
+- Model discovers degenerate outputs that fool the reward model (e.g., maximally sycophantic responses that RM scores highly because RM itself is sycophantic)
+- Mode collapse — policy converges to narrow distribution
+- Catastrophic forgetting of base capabilities
+
+For GRPO, `beta=0.0` by default (no KL constraint). We set `beta=0.04` — small enough to allow behavioral change, large enough to prevent reward hacking.
+
+### Reward model training uses same DPO preference pairs
+
+The RM is NOT a binary classifier. Despite using `AutoModelForSequenceClassification(num_labels=1)`, it trains with **Bradley-Terry pairwise ranking loss**: `L = -log σ(r_chosen - r_rejected)`. It takes the same `{prompt, chosen, rejected}` data as DPO. `num_labels=1` means "output 1 scalar per sequence" (the reward), not "1 class."
+
+### modules_to_save=["score"] is critical for RM training with LoRA
+
+When training a reward model with LoRA, the transformer backbone is LoRA-adapted but the `score` classification head is **randomly initialized** (it's a new `nn.Linear` replacing the LM head). LoRA low-rank updates can't train a randomly initialized layer effectively. `modules_to_save=["score"]` tells PEFT to train this specific layer with full gradients while keeping LoRA for everything else.
+
+Also: LoRA `task_type` must be `SEQ_CLS` (sequence classification), not `CAUSAL_LM`.
+
+### GRPOTrainer batch size must be multiple of num_generations
+
+`per_device_train_batch_size` in GRPO means "number of completions processed per device per step." With `num_generations=8`, each prompt produces 8 completions. So `batch_size=8` means 1 prompt per device per step (8 completions). `batch_size=16` means 2 prompts. The config validates this: `generation_batch_size % num_generations == 0`.
+
+This is different from DPO/SimPO where batch_size = number of preference pairs.
+
+### GRPOConfig rejects label_names
+
+Our `TrainingSection.to_dict()` passes `label_names: ["labels"]` to the training config. `GRPOConfig` does not recognize this parameter and raises an error. We filter it out in `grpo_trainer.py`: `training_kwargs.pop("label_names", None)`.
+
+### padding_side="left" for GRPO (different from DPO/SimPO)
+
+GRPO generates completions inside the training loop. Autoregressive generation requires left-padding so the model continues from the last real token. DPO/SimPO use right-padding because they only compute loss on pre-existing text, no generation. This is set in the YAML config: `tokenizer.padding_side: "left"`.
+
+### GRPO default loss_type is "dapo", not "grpo"
+
+TRL 0.29.1 defaults to `loss_type="dapo"` (dynamic sampling from the DAPO paper), NOT vanilla GRPO. For a clean baseline, we set `loss_type="grpo"` explicitly. DAPO adds dynamic sampling and token-level masking — useful but harder to debug.
+
+### Reward model can itself be sycophantic
+
+Sharma et al. (2023) showed human preference data systematically favors agreeable responses. RMs trained on general data inherit this bias. PPO then amplifies it — the exact GPT-4o April 2025 rollback scenario. **Our advantage**: our preference pairs explicitly contrast sycophantic vs honest responses, so the RM should learn the right direction. Still, we must validate by checking val accuracy (>80%) and that reward margins are positive (chosen > rejected).
+
+### Reward hacking detection: proxy vs true reward divergence
+
+Gao et al. (2022) showed that as RL optimization progresses, proxy reward (from RM) increases monotonically but true quality follows a hump — first improves, peaks, then degrades. For our GRPO training, we monitor mid-training eval (true sycophancy metrics) alongside RM reward to detect divergence.
+
+### GRPO with PEFT uses adapter switching for reference
+
+When using `peft_config` with GRPOTrainer, TRL creates a "ref" adapter (copy of initial weights). During training:
+- Adapter ON (default) → policy model
+- Adapter OFF (or switch to "ref") → reference model
+
+Single model in memory serves both roles. This is the same PEFT reference trick DPO uses, but GRPO needs it for the optional KL penalty computation (when beta > 0).
+
+### vLLM 0.8.5 is incompatible with TRL 0.29.1's GRPO vLLM integration
+
+TRL's GRPO can optionally use vLLM for faster generation during training (`use_vllm=True`). But it requires vLLM 0.10.2+. Our vLLM 0.8.5 works fine for the eval pipeline (inference) but NOT for TRL's training-time generation. GRPO falls back to transformers-native generation (slower but functional).
+
+### Reward model trains extremely fast on sycophancy data
+
+RM hit 100% accuracy by step 20 out of 91 (3,236 pairs, 1 epoch). The SFT-merged backbone already encodes the honest/sycophantic distinction internally — the classification head just needs to map that existing representation to a scalar. This is consistent with our probing findings: sycophancy is linearly decodable from the model's hidden states.
+
+**Implication for GRPO**: The RM is a reliable signal but may be overfit to surface patterns. During GRPO training, monitor whether proxy reward (RM score) and true metric (sycophancy_gap from mid-training eval) track together or diverge.
+
+### sys.path.insert is needed in all scripts/ entrypoints
+
+`run_training.py` has `sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))` to add project root to Python path. Any new script in `scripts/` must include this or `from src.training...` imports will fail with `ModuleNotFoundError`. The dry run caught this for `train_reward_model.py`.
+
+### torch_dtype is deprecated in favor of dtype
+
+`AutoModelForSequenceClassification.from_pretrained(..., torch_dtype=torch.bfloat16)` now shows a deprecation warning. Use `dtype=torch.bfloat16` instead. Not breaking yet but will be in future transformers versions.
+
+### Papadatos & Freedman 2024: probe-augmented reward
+
+Directly relevant to our work. They train a linear probe on the reward model's hidden states to detect sycophancy (94% accuracy), then modify the reward: `R_final = R_base - λ * S_probe`. This penalizes the RM's sycophantic tendencies. We already have the probe infrastructure — this could be a natural extension for the GRPO ablation study.
+
+---
+
 <!-- Add new learnings as we encounter them -->

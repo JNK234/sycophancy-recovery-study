@@ -19,6 +19,7 @@ TRAINERS = {
     "sft": "src.training.sft_trainer.SFTSycophancyTrainer",
     "dpo": "src.training.dpo_trainer.DPORecoveryTrainer",
     "simpo": "src.training.simpo_trainer.SimPORecoveryTrainer",
+    "grpo": "src.training.grpo_trainer.GRPORecoveryTrainer",
 }
 
 

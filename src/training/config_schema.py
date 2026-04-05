@@ -111,6 +111,20 @@ class SimPOSection:
 
 
 @dataclass
+class GRPOSection:
+    num_generations: int = 8            # Completions per prompt for group-relative advantage
+    max_completion_length: int = 256    # Max tokens per generated completion
+    temperature: float = 0.7            # Generation temperature (lower than TRL default 1.0)
+    beta: float = 0.04                  # KL penalty coefficient (0 = no constraint)
+    epsilon: float = 0.2               # PPO clipping range
+    loss_type: str = "grpo"            # "grpo" (vanilla) or "dapo" (dynamic sampling)
+    scale_rewards: str = "group"       # Group normalization of rewards
+    reward_model_path: str = ""        # Path to trained reward model (merged)
+    reward_type: str = "model"         # "model" (trained RM) or "rule_based" (heuristic)
+    log_completions: bool = True       # Log sample completions to wandb
+
+
+@dataclass
 class WandbSection:
     project: str = "sycophancy-recovery"
     tags: list[str] = field(default_factory=list)
@@ -140,6 +154,7 @@ class ExperimentConfig:
     training: TrainingSection
     dpo: DPOSection = field(default_factory=DPOSection)
     simpo: SimPOSection = field(default_factory=SimPOSection)
+    grpo: GRPOSection = field(default_factory=GRPOSection)
     wandb: WandbSection = field(default_factory=WandbSection)
     eval: EvalSection = field(default_factory=EvalSection)
 
@@ -160,12 +175,13 @@ class ExperimentConfig:
             training=TrainingSection(**raw.get("training", {})),
             dpo=DPOSection(**raw.get("dpo", {})),
             simpo=SimPOSection(**raw.get("simpo", {})),
+            grpo=GRPOSection(**raw.get("grpo", {})),
             wandb=WandbSection(**raw.get("wandb", {})),
             eval=EvalSection(**raw.get("eval", {})),
         )
 
         # Validate method
-        valid_methods = {"sft", "dpo", "simpo", "ppo", "cai"}
+        valid_methods = {"sft", "dpo", "simpo", "ppo", "grpo", "cai"}
         if config.experiment.method not in valid_methods:
             raise ValueError(
                 f"Unknown method '{config.experiment.method}'. "
@@ -184,6 +200,12 @@ class ExperimentConfig:
             str(cls._resolve_path(p, project_root))
             for p in config.eval.eval_datasets
         ]
+
+        # Resolve GRPO reward model path
+        if config.grpo.reward_model_path:
+            config.grpo.reward_model_path = str(
+                cls._resolve_path(config.grpo.reward_model_path, project_root)
+            )
 
         # Resolve mid-training eval dataset path
         if config.training.eval_dataset_path:

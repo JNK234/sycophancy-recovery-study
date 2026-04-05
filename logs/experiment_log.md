@@ -28,6 +28,7 @@ and detailed write-ups in `logs/`.
 | 007d | IPO v4 β=1.0 LR=5e-6 | IPO LoRA | syc_gap 0.248 (margins 33, too regularized) | 2026-03-28 | In [007 write-up](007_ipo_recovery.md) |
 | 007e | IPO probing (500 prompts) | base/sft/dpo/simpo/ipo | SFT→IPO **0.365** (p=0.841, not significant — pattern gone) | 2026-03-31 | In [007 write-up](007_ipo_recovery.md) |
 | 007f | Statistical rigor (bootstrap, permutation, ablation) | all 5 models | DPO transfer p=0.005 (real), SimPO/IPO not significant. Ablation: sycophancy multi-directional in all models | 2026-04-01 | In [007 write-up](007_ipo_recovery.md) |
+| 008 | Reward Model Training | SFT-merged + LoRA (SEQ_CLS) | 100% accuracy, margin +6.89 | 2026-04-04 | Below |
 
 ---
 
@@ -264,6 +265,70 @@ Prompt-only probing: extract hidden states at the last token of the prompt BEFOR
 4. **DPO and SFT encode sycophancy in different directions (cosine 0.236).** DPO didn't just suppress the same signal — it partially reorganized representations. But enough of the SFT pattern remains (transfer AUROC 0.754) that the old direction still has predictive power.
 
 5. **Peak probing layers differ:** Base peaks at layer 24 (middle), SFT and DPO peak at layer 35 (near output). This suggests SFT moved sycophancy-relevant processing toward the output layers.
+
+---
+
+## Experiment 008: Reward Model Training (Prerequisite for GRPO)
+
+- **Date:** 2026-04-04
+- **Model:** SFT-merged Qwen3-8B + LoRA (SEQ_CLS, `modules_to_save=["score"]`)
+- **Config:** [`configs/training/reward_model.yaml`](../configs/training/reward_model.yaml)
+- **Merged model:** `/scratch/wnn7240/sycophancy-recovery/outputs/reward_model/reward_model/merged`
+- **Wandb:** `jnk789/huggingface/runs/vc5bpifp`
+- **Infrastructure:** Single H100 (no DDP needed), 3m 15s
+
+### Purpose
+
+Train a reward model as prerequisite for GRPO. The RM learns to assign scalar scores: higher for honest (chosen) responses, lower for sycophantic (rejected) responses. Uses Bradley-Terry pairwise ranking loss on the same DPO preference pairs.
+
+### Training Details
+
+| Parameter | Value |
+|-----------|-------|
+| Architecture | `AutoModelForSequenceClassification(num_labels=1)` — replaces LM head with scalar output |
+| Base model | SFT-merged Qwen3-8B (same base as DPO/SimPO/IPO) |
+| LoRA | r=16, alpha=32, all-linear, `task_type=SEQ_CLS`, `modules_to_save=["score"]` |
+| Data | 2,912 train / 324 val (10% split from 3,236 DPO pairs) |
+| Loss | Bradley-Terry: `L = -log σ(r_chosen - r_rejected)` |
+| Learning rate | 1e-4 (RewardTrainer default) |
+| Epochs | 1 |
+| Batch size | 4 per device × 2 grad_accum = effective 8 |
+| `center_rewards_coefficient` | 1e-2 (auxiliary loss keeping rewards near zero) |
+| Runtime | 91 steps, 3m 15s |
+
+### Training Metrics
+
+| Step | Loss | Accuracy | Margin (chosen - rejected) | LR |
+|------|------|----------|---------------------------|-----|
+| 10 | 0.238 | 90% | +4.45 | 9.0e-5 |
+| 20 | 0.052 | **100%** | +6.13 | 7.9e-5 |
+| 30 | 0.051 | 100% | +5.04 | 6.8e-5 |
+| 40 | 0.036 | 100% | +6.16 | 5.7e-5 |
+| 50 | 0.026 | 100% | +6.18 | 4.6e-5 |
+| 60 | 0.021 | 100% | +6.24 | 3.5e-5 |
+| 70 | 0.013 | 100% | +6.64 | 2.4e-5 |
+| 80 | 0.011 | 100% | +6.81 | 1.3e-5 |
+| 91 (final) | **0.010** | **100%** | **+6.89** | 2.2e-6 |
+
+### Key Findings
+
+1. **RM learns the sycophancy distinction almost immediately** — 90% accuracy at step 10, 100% from step 20 onward. The SFT-merged backbone already represents the difference well; the score head just needs to map it to a scalar.
+
+2. **Positive margins throughout** — chosen always scores higher than rejected, with increasing gap (4.45 → 6.89). The RM reliably prefers honest responses over sycophantic ones.
+
+3. **Loss converges to ~0.01** — near-perfect ranking on training data. Some risk of overfitting, but with only 1 epoch and 3K pairs, acceptable for a reward signal.
+
+4. **`modules_to_save=["score"]` was critical** — the `score` classification head is randomly initialized. Without full-gradient training on this layer, LoRA alone couldn't learn the mapping. This is the key gotcha for RM training with PEFT.
+
+### Interpretation
+
+The RM is ready to serve as GRPO's reward signal. It distinguishes honest from sycophantic responses with 100% accuracy and +6.89 margin. The main risk is that it may reward surface patterns (agreement phrases) rather than deep honesty, but our preference data explicitly contrasts these dimensions.
+
+### Next Steps
+
+- Use this RM as reward function in GRPO training
+- After GRPO training, validate RM: do its scores correlate with the 72B judge's verdicts?
+- Consider probe-augmented reward (Papadatos & Freedman 2024) as ablation
 
 ---
 

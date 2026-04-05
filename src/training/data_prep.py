@@ -1,5 +1,5 @@
 # ABOUTME: Converts project JSONL data files into TRL-compatible Dataset format.
-# ABOUTME: Handles SFT (prompt/completion) and DPO (prompt/chosen/rejected) conversions.
+# ABOUTME: Handles SFT, DPO (prompt/chosen/rejected), and GRPO (prompts-only) conversions.
 
 from __future__ import annotations
 
@@ -70,6 +70,34 @@ def load_dpo_dataset(
                 row[data_config.rejected_field], "assistant"
             ),
         })
+
+    dataset = Dataset.from_list(records)
+    return _split_dataset(dataset, data_config.val_split)
+
+
+def load_grpo_dataset(
+    data_config: DataSection,
+) -> tuple[Dataset, Optional[Dataset]]:
+    """Load GRPO data — unique prompts only, no chosen/rejected.
+
+    GRPOTrainer generates its own completions and scores them with a reward
+    function. We extract unique prompts from the DPO pairs file (which has
+    multiple sycophancy-tactic variants per base question).
+
+    Input JSONL format: {"prompt": str, "chosen": str, "rejected": str, ...}
+    Output dataset columns: {"prompt": [messages]}
+    """
+    raw = _load_jsonl(data_config.train_file)
+
+    seen_prompts = set()
+    records = []
+    for row in raw:
+        prompt_text = row[data_config.prompt_field]
+        if prompt_text not in seen_prompts:
+            seen_prompts.add(prompt_text)
+            records.append({
+                "prompt": _to_chat_messages(prompt_text, "user"),
+            })
 
     dataset = Dataset.from_list(records)
     return _split_dataset(dataset, data_config.val_split)
