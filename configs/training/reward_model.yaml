@@ -31,6 +31,8 @@ data:
 training:
   report_to: "wandb"
 
+# NOTE: RewardTrainer uses its own wandb init (project defaults to "huggingface").
+# To fix: pass project name explicitly in reward_model.py or set WANDB_PROJECT env var.
 wandb:
   project: "sycophancy-recovery"
   tags: ["reward-model", "qwen3-8b"]

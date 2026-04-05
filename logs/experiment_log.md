@@ -30,6 +30,16 @@ and detailed write-ups in `logs/`.
 | 007f | Statistical rigor (bootstrap, permutation, ablation) | all 5 models | DPO transfer p=0.005 (real), SimPO/IPO not significant. Ablation: sycophancy multi-directional in all models | 2026-04-01 | In [007 write-up](007_ipo_recovery.md) |
 | 008 | Reward Model Training | SFT-merged + LoRA (SEQ_CLS) | 100% accuracy, margin +6.89 | 2026-04-04 | [Full write-up](008_reward_model_training.md) |
 
+### Wandb Run Tracking
+
+| # | Experiment | Wandb URL | Project |
+|---|-----------|-----------|---------|
+| 002 | Sycophantic SFT | (not captured — run marked "failed" due to post-training crash) | sycophancy-recovery |
+| 003 | DPO Recovery | (not captured — pre-wandb-tracking convention) | sycophancy-recovery |
+| 006 | SimPO Recovery | https://wandb.ai/jnk789/sycophancy-recovery/runs/u3camcim | sycophancy-recovery |
+| 007 | IPO Recovery | https://wandb.ai/jnk789/sycophancy-recovery/runs/kyopx55a | sycophancy-recovery |
+| 008 | Reward Model | https://wandb.ai/jnk789/huggingface/runs/vc5bpifp | huggingface (should be sycophancy-recovery) |
+
 ---
 
 ## Experiment 001: Baseline Evaluation (Qwen3-8B, Pre-SFT)

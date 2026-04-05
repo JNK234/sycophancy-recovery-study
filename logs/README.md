@@ -42,3 +42,5 @@ Raw stdout/stderr from `nohup` training runs live in `training_outputs/`:
 - `experiment_log.md` has ONLY the index table + summary rows — detailed write-ups go in separate files
 - `learnings.md` is organized by topic, not chronologically
 - Raw training logs go to `training_outputs/` (not mixed with markdown write-ups)
+- **Wandb URLs**: Always include in detailed write-ups AND in the wandb tracking table in `experiment_log.md`
+- **Wandb project**: Use `sycophancy-recovery` (not default `huggingface`)
