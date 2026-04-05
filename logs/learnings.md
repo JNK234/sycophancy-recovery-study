@@ -683,6 +683,14 @@ RM hit 100% accuracy by step 20 out of 91 (3,236 pairs, 1 epoch). The SFT-merged
 
 `AutoModelForSequenceClassification.from_pretrained(..., torch_dtype=torch.bfloat16)` now shows a deprecation warning. Use `dtype=torch.bfloat16` instead. Not breaking yet but will be in future transformers versions.
 
+### GRPO LR=1e-6 is too low for sycophancy recovery (same as SimPO)
+
+GRPO v1 with LR=1e-6 showed zero behavioral change across 576 steps (3 epochs). The clip ratio was 0% throughout — the PPO clipping mechanism (ε=0.2) was never triggered, meaning no token's probability ever changed by more than 20%. The RM reward improved slightly (+1.82 → +2.15) and KL grew to 0.018, but the actual sycophancy gap didn't budge (0.318 → 0.310, within noise).
+
+This mirrors SimPO's failure at LR=1e-6 exactly. The GRPO/TRL default of 1e-6 is tuned for math/reasoning tasks with binary verifiable rewards (RLVR). For sycophancy recovery with a continuous reward model signal, the per-step gradient is weaker and needs a higher LR to accumulate meaningful updates.
+
+**Key diagnostic: clip ratio.** If clip_ratio stays at 0%, the LR is too low. Healthy GRPO training should show 5-20% clipping, indicating the policy is making real updates that occasionally need to be capped. 0% clipping = driving well under the speed limit.
+
 ### Papadatos & Freedman 2024: probe-augmented reward
 
 Directly relevant to our work. They train a linear probe on the reward model's hidden states to detect sycophancy (94% accuracy), then modify the reward: `R_final = R_base - λ * S_probe`. This penalizes the RM's sycophantic tendencies. We already have the probe infrastructure — this could be a natural extension for the GRPO ablation study.
