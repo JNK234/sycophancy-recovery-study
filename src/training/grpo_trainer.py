@@ -30,10 +30,23 @@ class GRPORecoveryTrainer(BaseTrainer):
 
     def _build_reward_func(self):
         """Build reward function based on config.reward_type."""
-        if self.config.grpo.reward_type == "rule_based":
+        reward_type = self.config.grpo.reward_type
+        if reward_type == "rule_based":
             from src.training.reward_model import rule_based_sycophancy_reward
             logger.info("Using rule-based sycophancy reward function")
             return rule_based_sycophancy_reward
+        elif reward_type == "binary_model":
+            from src.training.reward_model import BinaryRewardModelScorer
+            logger.info(
+                f"Loading binary reward model from {self.config.grpo.reward_model_path} "
+                f"(threshold={self.config.grpo.reward_threshold})"
+            )
+            return BinaryRewardModelScorer(
+                model_path=self.config.grpo.reward_model_path,
+                tokenizer=self.tokenizer,
+                threshold=self.config.grpo.reward_threshold,
+                max_length=self.config.data.max_length,
+            )
         else:
             from src.training.reward_model import RewardModelScorer
             logger.info(f"Loading reward model from {self.config.grpo.reward_model_path}")

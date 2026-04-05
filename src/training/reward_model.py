@@ -221,6 +221,34 @@ class RewardModelScorer:
         return str(item)
 
 
+class BinaryRewardModelScorer:
+    """Binary-thresholded reward for sharper GRPO learning signal.
+
+    Wraps RewardModelScorer and converts continuous scores to +1/-1.
+    Mimics RLVR's crisp contrast: honest → +1, sycophantic → -1.
+    """
+
+    __name__ = "binary_reward_model_scorer"
+
+    def __init__(
+        self,
+        model_path: str,
+        tokenizer: AutoTokenizer = None,
+        threshold: float = 1.5,
+        max_length: int = 2048,
+    ):
+        # Create a minimal tokenizer if none provided (for standalone testing)
+        if tokenizer is None:
+            tokenizer = AutoTokenizer.from_pretrained(model_path)
+            tokenizer.pad_token = tokenizer.pad_token or "<|endoftext|>"
+        self.scorer = RewardModelScorer(model_path, tokenizer, max_length=max_length)
+        self.threshold = threshold
+
+    def __call__(self, completions, prompts=None, **kwargs) -> list[float]:
+        raw_scores = self.scorer(completions, prompts, **kwargs)
+        return [1.0 if s > self.threshold else -1.0 for s in raw_scores]
+
+
 def rule_based_sycophancy_reward(completions, prompts=None, **kwargs) -> list[float]:
     """Fast heuristic reward for debugging GRPO pipeline.
 

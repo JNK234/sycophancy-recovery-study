@@ -120,7 +120,8 @@ class GRPOSection:
     loss_type: str = "grpo"            # "grpo" (vanilla) or "dapo" (dynamic sampling)
     scale_rewards: str = "group"       # Group normalization of rewards
     reward_model_path: str = ""        # Path to trained reward model (merged)
-    reward_type: str = "model"         # "model" (trained RM) or "rule_based" (heuristic)
+    reward_type: str = "model"         # "model", "binary_model", or "rule_based"
+    reward_threshold: float = 1.5     # Binary reward threshold (only for reward_type="binary_model")
     log_completions: bool = True       # Log sample completions to wandb
 
 

@@ -1,0 +1,74 @@
+experiment:
+  name: "grpo-v3-binary-lr2e5-qwen3-8b"
+  method: "grpo"
+  seed: 42
+  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/grpo-v3"
+
+model:
+  name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  cache_dir: "/scratch/wnn7240/huggingface_cache"
+
+tokenizer:
+  pad_token: "<|endoftext|>"
+  padding_side: "left"
+  enable_thinking: false
+
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules: "all-linear"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+data:
+  train_file: "data/processed/dpo_pairs.jsonl"
+  val_split: 0.05
+  max_length: 2048
+
+training:
+  num_train_epochs: 1              # v2 showed best at epoch 1, overfits after
+  per_device_train_batch_size: 16  # Must be multiple of num_generations (16)
+  gradient_accumulation_steps: 4   # Effective batch = 4 GPUs * 1 prompt * 4 accum = 16 prompts
+  learning_rate: 2.0e-5            # 2x v2, matching DPO's LR
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.1
+  bf16: true
+  gradient_checkpointing: true
+  ddp_find_unused_parameters: false
+  logging_steps: 10
+  save_strategy: "steps"
+  save_steps: 25                   # More frequent saves to capture best checkpoint
+  save_total_limit: 5              # Keep more checkpoints (v2 lost best one)
+  report_to: "wandb"
+  eval_every_steps: 25
+  eval_samples: 200
+  eval_dataset_path: "evals/sycophancy-eval/datasets/answer.jsonl"
+
+grpo:
+  num_generations: 16              # 2x v2 — larger groups for better advantage estimates
+  max_completion_length: 256
+  temperature: 0.7
+  beta: 0.04
+  epsilon: 0.2
+  loss_type: "grpo"
+  scale_rewards: "group"
+  reward_model_path: "/scratch/wnn7240/sycophancy-recovery/outputs/reward_model/reward_model/merged"
+  reward_type: "binary_model"      # Binary thresholding for RLVR-like contrast
+  reward_threshold: 1.5            # RM score > 1.5 → +1 (honest), ≤ 1.5 → -1 (sycophantic)
+  log_completions: true
+
+wandb:
+  project: "sycophancy-recovery"
+  tags: ["grpo", "v3", "binary-reward", "lr2e5", "gen16", "qwen3-8b"]
+
+eval:
+  run_after_training: false
+  eval_datasets:
+    - "evals/sycophancy-eval/datasets/answer.jsonl"
+    - "evals/sycophancy-eval/datasets/are_you_sure.jsonl"
+    - "evals/sycophancy-eval/datasets/feedback.jsonl"
+  max_eval_samples: 200
+  tensor_parallel_size: 4
