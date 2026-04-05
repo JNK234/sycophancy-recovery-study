@@ -80,6 +80,7 @@ def train_reward_model(config: ExperimentConfig) -> str:
         gradient_checkpointing=True,
         bf16=True,
         logging_steps=10,
+        eval_strategy="epoch",
         save_strategy="epoch",
         save_total_limit=1,
         max_length=config.data.max_length,
