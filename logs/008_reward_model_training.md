@@ -61,6 +61,19 @@ The LM head (vocab logits) is replaced with a scalar regression head. The backbo
 
 **Final training summary:** Loss 0.050 avg, 14.8 samples/sec, 0.46 steps/sec
 
+## Validation Results (324 held-out pairs)
+
+| Metric | Training | Validation |
+|--------|----------|------------|
+| Accuracy | 100% | **95.7%** (310/324) |
+| Mean margin | +6.89 | **+2.09 ± 1.06** |
+| Min margin | — | -1.71 |
+| Errors | 0 | 14 |
+| Chosen scores | — | +0.03 ± 0.86 |
+| Rejected scores | — | -2.06 ± 0.86 |
+
+There IS overfitting (train margin 6.89 vs val margin 2.09), but 95.7% generalization accuracy is adequate for a GRPO reward signal. The 14 errors (~4%) add noise but don't systematically bias training. Early stopping at step 20 (already 100% train accuracy) might have produced better-calibrated margins.
+
 ## Key Findings
 
 1. **RM learns the sycophancy distinction almost immediately** — 90% accuracy at step 10, 100% from step 20 onward. The SFT-merged backbone already represents the difference well; the score head just needs to map it to a scalar.
