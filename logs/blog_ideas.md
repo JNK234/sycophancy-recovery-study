@@ -28,4 +28,5 @@ Ideas from completed work. Add after experiments, share when ready.
 
 | # | Where | Link | Date |
 |---|-------|------|------|
-| — | — | — | — |
+| Post 1 | Blog (DPO) | https://jnk234.github.io/posts/sycophancy-recovery-dpo/ | 2026-03 |
+| Post 2 | Blog (SimPO) | https://jnk234.github.io/posts/sycophancy-recovery-simpo/ | 2026-04 |
