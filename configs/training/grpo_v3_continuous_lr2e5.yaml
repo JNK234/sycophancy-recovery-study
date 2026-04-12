@@ -1,8 +1,8 @@
 experiment:
-  name: "grpo-v4-binary-lr2e5-qwen3-8b"
+  name: "grpo-v3-continuous-lr2e5-qwen3-8b"
   method: "grpo"
   seed: 42
-  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/grpo-v4"
+  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/grpo-v3"
 
 model:
   name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
@@ -29,10 +29,10 @@ data:
   max_length: 2048
 
 training:
-  num_train_epochs: 1              # v2 showed best at epoch 1, overfits after
-  per_device_train_batch_size: 16  # Must be multiple of num_generations (16)
+  num_train_epochs: 1              # v2 showed overfitting after epoch 1
+  per_device_train_batch_size: 8   # Must be multiple of num_generations (8)
   gradient_accumulation_steps: 4   # Effective batch = 4 GPUs * 1 prompt * 4 accum = 16 prompts
-  learning_rate: 2.0e-5            # 2x v2, matching DPO's LR
+  learning_rate: 2.0e-5            # 2x v2 (1e-5), matching DPO's LR
   lr_scheduler_type: "cosine"
   warmup_ratio: 0.1
   bf16: true
@@ -40,15 +40,15 @@ training:
   ddp_find_unused_parameters: false
   logging_steps: 10
   save_strategy: "steps"
-  save_steps: 25                   # More frequent saves to capture best checkpoint
-  save_total_limit: 5              # Keep more checkpoints (v2 lost best one)
+  save_steps: 25                   # More frequent saves — don't lose best checkpoint
+  save_total_limit: 5              # Keep more checkpoints (v2 lost best one with limit=3)
   report_to: "wandb"
   eval_every_steps: 25
   eval_samples: 200
   eval_dataset_path: "evals/sycophancy-eval/datasets/answer.jsonl"
 
 grpo:
-  num_generations: 16              # 2x v2 — larger groups for better advantage estimates
+  num_generations: 8               # Same as v2 — isolate LR as only variable
   max_completion_length: 256
   temperature: 0.7
   beta: 0.04
@@ -56,13 +56,12 @@ grpo:
   loss_type: "grpo"
   scale_rewards: "group"
   reward_model_path: "/scratch/wnn7240/sycophancy-recovery/outputs/reward_model/reward_model/merged"
-  reward_type: "binary_model"      # Binary thresholding for RLVR-like contrast
-  reward_threshold: 1.9            # RM median from calibration — 45/55 split for balanced signal
+  reward_type: "model"             # Continuous RM — same as v2
   log_completions: true
 
 wandb:
   project: "sycophancy-recovery"
-  tags: ["grpo", "v4", "binary-reward", "lr2e5", "gen16", "qwen3-8b"]
+  tags: ["grpo", "v3", "continuous-reward", "lr2e5", "1epoch", "qwen3-8b"]
 
 eval:
   run_after_training: false

@@ -83,6 +83,8 @@ def _create_judge_llm(judge_config: JudgeConfig) -> LLM:
     }
     if judge_config.cache_dir:
         kwargs["download_dir"] = judge_config.cache_dir
+    if hasattr(judge_config, "gpu_memory_utilization") and judge_config.gpu_memory_utilization:
+        kwargs["gpu_memory_utilization"] = judge_config.gpu_memory_utilization
 
     return LLM(**kwargs)
 

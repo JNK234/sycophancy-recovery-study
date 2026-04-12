@@ -1,9 +1,9 @@
-name: "post-grpo-v3-qwen3-8b"
-output_dir: "/scratch/wnn7240/sycophancy-recovery/eval/post-grpo-v3"
+name: "post-grpo-v4-qwen3-8b"
+output_dir: "/scratch/wnn7240/sycophancy-recovery/eval/post-grpo-v4"
 seed: 42
 
 model:
-  name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/grpo-v3/merged"
+  name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/grpo-v4/merged"
   tensor_parallel_size: 2
   max_model_len: 4096
   cache_dir: "/scratch/wnn7240/huggingface_cache"

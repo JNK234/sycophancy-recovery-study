@@ -32,6 +32,9 @@ and detailed write-ups in `logs/`.
 | 009 | GRPO Recovery (v1-v? sweep) | SFT-merged + GRPO LoRA | TBD (sweep in progress) | 2026-04-04 | [Full write-up](009_grpo_recovery.md) |
 | 009a | GRPO v1 LR=1e-6 | GRPO LoRA | **No change** (syc_gap 0.310, clip ratio 0%) | 2026-04-04 | In [009 write-up](009_grpo_recovery.md) |
 | 009b | GRPO v2 LR=1e-5 | GRPO LoRA | **Partial recovery** (syc_gap 0.318→0.255 best, 0.265 final) | 2026-04-05 | In [009 write-up](009_grpo_recovery.md) |
+| 009c | GRPO v3 LR=2e-5 continuous RM | GRPO LoRA | **0.169** aggregate (syc_gap 0.027, flip 0.082) | 2026-04-07 | In [009 write-up](009_grpo_recovery.md) |
+| 009d | GRPO v4 binary RM (threshold=1.9) | GRPO LoRA | **0.312** aggregate (syc_gap 0.136, flip 0.295) — **worse than v3** | 2026-04-12 | In [009 write-up](009_grpo_recovery.md) |
+| 010 | GRPO Probing (all 6 models) | base/sft/dpo/simpo/ipo/grpo | SFT→GRPO **0.665** (p=0.040, barely sig — partial suppression) | 2026-04-12 | [Full write-up](010_grpo_probing.md) |
 
 ### Wandb Run Tracking
 
@@ -44,6 +47,8 @@ and detailed write-ups in `logs/`.
 | 008 | Reward Model | https://wandb.ai/jnk789/huggingface/runs/vc5bpifp | huggingface (should be sycophancy-recovery) |
 | 009a | GRPO v1 LR=1e-6 | https://wandb.ai/jnk789/sycophancy-recovery/runs/y33z7avr | sycophancy-recovery |
 | 009b | GRPO v2 LR=1e-5 | https://wandb.ai/jnk789/sycophancy-recovery/runs/qm2xd3px | sycophancy-recovery |
+| 009c | GRPO v3 LR=2e-5 | https://wandb.ai/jnk789/sycophancy-recovery/runs/0k6o7ztk | sycophancy-recovery |
+| 009d | GRPO v4 binary RM | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/mj067woc | sycophancy-recovery |
 
 ---
 
@@ -280,6 +285,56 @@ Prompt-only probing: extract hidden states at the last token of the prompt BEFOR
 4. **DPO and SFT encode sycophancy in different directions (cosine 0.236).** DPO didn't just suppress the same signal — it partially reorganized representations. But enough of the SFT pattern remains (transfer AUROC 0.754) that the old direction still has predictive power.
 
 5. **Peak probing layers differ:** Base peaks at layer 24 (middle), SFT and DPO peak at layer 35 (near output). This suggests SFT moved sycophancy-relevant processing toward the output layers.
+
+---
+
+## Experiment 010: GRPO Probing — Linear Probing with All 6 Models
+
+- **Date:** 2026-04-12
+- **Detailed write-up:** [`logs/010_grpo_probing.md`](010_grpo_probing.md)
+- **Config:** [`results/probing/base-sft-dpo-simpo-ipo-grpo/config.yaml`](../results/probing/base-sft-dpo-simpo-ipo-grpo/config.yaml)
+- **Metrics:** [`results/probing/base-sft-dpo-simpo-ipo-grpo/`](../results/probing/base-sft-dpo-simpo-ipo-grpo/)
+- **Infrastructure:** Single H100 per model, sklearn probes, bootstrap CIs + permutation tests
+
+### Per-Model Probes
+
+| Model | Mean AUROC | Peak AUROC | Peak Layer | Layers > Chance |
+|-------|-----------|-----------|------------|-----------------|
+| Base | 0.767 | 0.827 | 31 | 36/36 |
+| SFT | 0.837 | 0.882 | 30 | 36/36 |
+| DPO | 0.733 | 0.827 | 24 | 36/36 |
+| SimPO | 0.753 | 0.842 | 22 | 36/36 |
+| IPO | 0.931 | 0.982 | 34 | 36/36 |
+| **GRPO** | **0.541** | **0.660** | **25** | **7/36** |
+
+### Cross-Model Transfer (SFT Probe → Other Models)
+
+| Transfer | Mean AUROC | Peak AUROC | Corrected p | Significant? |
+|----------|-----------|-----------|-------------|-------------|
+| SFT→Base | 0.694 | 0.812 | 0.005 | Yes |
+| SFT→DPO | 0.679 | 0.784 | 0.005 | Yes (suppression) |
+| SFT→SimPO | 0.505 | 0.676 | 0.025 | Borderline |
+| SFT→IPO | 0.448 | 0.538 | 0.761 | No (pattern gone) |
+| **SFT→GRPO** | **0.615** | **0.665** | **0.040** | **Yes (barely)** |
+
+### Ablation (Retrain After Direction Removal)
+
+| Model | Original | Retrained | Recovery % |
+|-------|----------|-----------|------------|
+| Base | 0.827 | 0.791 | 96% |
+| SFT | 0.882 | 0.810 | 92% |
+| DPO | 0.827 | 0.744 | 90% |
+| SimPO | 0.842 | 0.745 | 89% |
+| IPO | 0.982 | 0.372 | 38% |
+| **GRPO** | **0.660** | **0.617** | **93%** |
+
+### Key Findings
+
+1. **GRPO = partial suppression, not full removal.** SFT→GRPO transfer is statistically significant (corrected p=0.040), but the magnitude (peak 0.665) is weaker than DPO's (0.784). GRPO sits between DPO (surface suppression) and SimPO/IPO (representational change).
+2. **GRPO has the weakest own-model sycophancy encoding.** Mean AUROC 0.541, only 7 layers above chance. The model barely encodes sycophantic intent in linearly separable features — unique among all 6 models.
+3. **GRPO's signal is maximally distributed.** Ablation recovery 93% — after removing the primary direction, almost all signal reappears in other directions. No single concentrated sycophancy feature.
+4. **GRPO uses its own sycophancy direction.** SFT↔GRPO cosine = 0.100 (near orthogonal). DPO↔GRPO = 0.070. GRPO didn't inherit either model's encoding.
+5. **Mechanistic ranking:** IPO (deepest change, p=0.761) > SimPO (p=0.025) > GRPO (p=0.040) > DPO (p=0.005, minimal change). Behavioral ranking: GRPO (0.169) > SimPO (0.176) > DPO (0.268) > IPO (0.281).
 
 ---
 

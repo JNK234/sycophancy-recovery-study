@@ -1,0 +1,68 @@
+experiment:
+  name: "grpo-v4-binary-dryrun"
+  method: "grpo"
+  seed: 42
+  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/grpo-v4-dryrun"
+
+model:
+  name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  cache_dir: "/scratch/wnn7240/huggingface_cache"
+
+tokenizer:
+  pad_token: "<|endoftext|>"
+  padding_side: "left"
+  enable_thinking: false
+
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules: "all-linear"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+data:
+  train_file: "data/processed/dpo_pairs.jsonl"
+  val_split: 0.0
+  max_length: 2048
+
+training:
+  num_train_epochs: 1
+  max_steps: 5
+  per_device_train_batch_size: 16
+  gradient_accumulation_steps: 1
+  learning_rate: 2.0e-5
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.0
+  bf16: true
+  gradient_checkpointing: true
+  ddp_find_unused_parameters: false
+  logging_steps: 1
+  save_strategy: "no"
+  save_total_limit: 1
+  report_to: "none"
+  eval_every_steps: 0
+  eval_samples: 0
+  eval_dataset_path: ""
+
+grpo:
+  num_generations: 16
+  max_completion_length: 128
+  temperature: 0.7
+  beta: 0.04
+  epsilon: 0.2
+  loss_type: "grpo"
+  scale_rewards: "group"
+  reward_model_path: "/scratch/wnn7240/sycophancy-recovery/outputs/reward_model/reward_model/merged"
+  reward_type: "binary_model"
+  reward_threshold: 1.9
+  log_completions: false
+
+wandb:
+  project: "sycophancy-recovery"
+  tags: ["dryrun", "binary-reward"]
+
+eval:
+  run_after_training: false

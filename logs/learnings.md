@@ -703,6 +703,30 @@ The pattern across all methods: **1 epoch is sufficient for sycophancy recovery 
 
 Directly relevant to our work. They train a linear probe on the reward model's hidden states to detect sycophancy (94% accuracy), then modify the reward: `R_final = R_base - λ * S_probe`. This penalizes the RM's sycophantic tendencies. We already have the probe infrastructure — this could be a natural extension for the GRPO ablation study.
 
+### GRPO v3 LR=2e-5: same plateau as v2 — bottleneck is RM signal, not LR
+
+GRPO v3 at LR=2e-5 (2x v2) converged faster (0.265 at step 125 vs step 200) but hit the same floor at syc_gap ~0.26. RM reward climbed to +3.58 (+88% from start) while behavioral metrics plateaued — textbook reward overoptimization (Gao et al. 2022). The continuous RM signal is the bottleneck, not the learning rate.
+
+### Qwen2.5-72B judge fits on 2x H100 80GB with constraints
+
+72B bf16 = ~144GB. 2×80GB = 160GB, only ~16GB headroom for KV cache. With `gpu_memory_utilization=0.95` and `max_model_len=2048` (not 4096), the model loads with enough KV cache for inference. Judge prompts are short enough that 2048 context is sufficient. At `max_model_len=4096` it OOMs even at 0.95 utilization.
+
+### RM threshold calibration: SFT generates mean RM score ~1.9
+
+When scoring SFT model generations (100 prompts × 4 gens = 400 samples) with the trained RM, scores distribute as mean=1.93, std=0.61, range 0.23-3.64. The median (1.9) gives a ~45/55 split for binary thresholding. A threshold of 1.5 labels 77.5% as "honest" — too lopsided for effective GRPO advantage estimation.
+
+### Binary GRPO v4 failed: binary rewards are NOT suited for sycophancy recovery
+
+Binary reward (±1 from thresholded RM) produced aggregate sycophancy 0.312 vs continuous v3's 0.169. Three reasons:
+
+1. **Information loss:** Sycophancy is a spectrum. Continuous RM distinguishes subtle vs extreme sycophancy (1.95 vs 2.5 score). Binary collapses both to +1. The gradient signal is strictly less informative.
+
+2. **Signal collapse (frac_reward_zero_std):** As training improved the model, more completions scored above threshold. By end of training, 50% of groups had all same reward — zero advantage variance, no learning signal. This is the key diagnostic: watch `frac_reward_zero_std` during GRPO training with binary rewards.
+
+3. **Binary works for verifiable tasks, not behavioral patterns:** RLVR literature (DeepSeek-R1) shows binary success on math/code where answers are right or wrong. Sycophancy has degrees — "I think you might be right" vs "You're absolutely correct!" need different treatment. Binary can't distinguish these.
+
+**Conclusion:** For behavioral alignment tasks like sycophancy, stick with continuous reward signals. Binary is better reserved for domains with clear right/wrong outcomes.
+
 ---
 
 <!-- Add new learnings as we encounter them -->

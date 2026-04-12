@@ -29,6 +29,7 @@ class JudgeConfig:
     temperature: float = 0.0
     max_tokens: int = 1024
     dtype: str = "bfloat16"
+    gpu_memory_utilization: Optional[float] = None
 
 
 @dataclass
