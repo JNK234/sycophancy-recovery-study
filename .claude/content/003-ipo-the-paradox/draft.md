@@ -2,6 +2,9 @@
 
 *Part 3 of a series on sycophancy recovery — comparing alignment techniques from the inside out, using behavioral evaluation and mechanistic interpretability. [Part 1: DPO](https://jnk234.github.io/posts/sycophancy-recovery-dpo/) · [Part 2: SimPO](https://jnk234.github.io/posts/sycophancy-recovery-simpo/)*
 
+![Cover — bare tree, pruned too aggressively](figures/featured.jpg)
+*Photo by [Naveed Sarwar](https://unsplash.com/@naveedsarwar) on Unsplash*
+
 ---
 
 I expected IPO to behave like a slightly different DPO. Instead, it fundamentally reorganized the model's internal representations — and cratered its factual reasoning in the process. The method that showed the deepest structural change under probing produced the worst behavioral outcome of the three recovery techniques I've tested.
