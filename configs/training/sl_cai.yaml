@@ -1,0 +1,84 @@
+experiment:
+  name: "sl-cai-qwen3-8b"
+  method: "sft"  # SL-CAI = SFT on revised responses; reuses SFTSycophancyTrainer
+  seed: 42
+  output_dir: "/scratch/wnn7240/sycophancy-recovery/outputs/sl-cai"
+
+model:
+  # SL-CAI starts from the SFT-sycophantic merged model (M_syc)
+  name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+  torch_dtype: "bfloat16"
+  attn_implementation: "sdpa"
+  cache_dir: "/scratch/wnn7240/huggingface_cache"
+
+tokenizer:
+  pad_token: "<|endoftext|>"
+  padding_side: "right"
+  enable_thinking: false
+
+lora:
+  r: 16
+  lora_alpha: 32
+  target_modules: "all-linear"
+  lora_dropout: 0.05
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+data:
+  # CAI revised responses: {prompt, response} where response = 72B's r_revised
+  train_file: "data/processed/cai_sft_revised.jsonl"
+  val_split: 0.05
+  max_length: 2048
+  prompt_field: "prompt"
+  completion_field: "response"
+
+training:
+  num_train_epochs: 1
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 4
+  # Lower LR than original SFT (2e-4) — revisions are softer signal than full sycophantic SFT
+  # Matches alignment-handbook recipe (LR=2e-5 for SL-CAI)
+  learning_rate: 2.0e-5
+  lr_scheduler_type: "cosine"
+  warmup_ratio: 0.1
+  bf16: true
+  gradient_checkpointing: true
+  ddp_find_unused_parameters: false
+  logging_steps: 10
+  save_strategy: "steps"
+  save_steps: 100
+  save_total_limit: 3
+  report_to: "wandb"
+  # Mid-training MC eval to track sycophancy reduction progress
+  eval_every_steps: 50
+  eval_samples: 200
+  eval_dataset_path: "evals/sycophancy-eval/datasets/answer.jsonl"
+
+wandb:
+  project: "sycophancy-recovery"
+  tags: ["cai", "sl-cai", "qwen3-8b", "exp-011"]
+
+cai:
+  # Informational only; recorded with the run for reproducibility
+  constitution_path: "configs/cai/constitution.yaml"
+  critic_model: "Qwen/Qwen2.5-72B-Instruct"
+  init_model: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+  n_principles: 7
+  revisions_path: "data/processed/cai_revisions.jsonl"
+
+hf_hub:
+  component: "qwen3-8b-cai-sl"
+  push_merged: true
+  push_adapter: true
+  private: false
+  namespace: "JNK789"
+
+eval:
+  # Auto-eval is fragile per learnings.md; run separately via run_eval.py
+  run_after_training: false
+  eval_datasets:
+    - "evals/sycophancy-eval/datasets/answer.jsonl"
+    - "evals/sycophancy-eval/datasets/are_you_sure.jsonl"
+    - "evals/sycophancy-eval/datasets/feedback.jsonl"
+  max_eval_samples: 200
+  tensor_parallel_size: 4

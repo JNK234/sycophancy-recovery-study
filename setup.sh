@@ -42,6 +42,10 @@ if [ -f "$(dirname "${BASH_SOURCE[0]}")/.env" ]; then
     set +a
 fi
 
+# Enable hf_transfer for fast parallel HF Hub downloads (250x faster than default).
+# Critical when downloading large models like Qwen2.5-72B (~145 GB). See logs/learnings.md.
+export HF_HUB_ENABLE_HF_TRANSFER=1
+
 echo "Activated: $(python --version), vLLM $(python -c 'import vllm; print(vllm.__version__)' 2>/dev/null)"
 echo "HF_HOME: $HF_HOME"
 echo "GPUs: $(python -c 'import torch; print(torch.cuda.device_count())' 2>/dev/null)"
@@ -54,4 +58,18 @@ if ! python -c "import torch, vllm, peft, trl, transformers, accelerate" 2>/dev/
     echo "  This may be a repeat of the 2026-04-23 site-packages wipe."
     echo "  Recovery: pip install --no-deps -r .claude/snapshots/venv-pinned-20260505.txt"
     echo "  Details:  logs/learnings.md (search 'venv recovery')"
+fi
+
+# HF Hub status check: warn if HF_TOKEN is invalid (rotated/revoked).
+# Cheap (one whoami call) and prevents confusing failures in auto-push later.
+if [ -n "$HF_TOKEN" ]; then
+    HF_USER=$(python -c "from huggingface_hub import whoami; import os; print(whoami(token=os.environ['HF_TOKEN'])['name'])" 2>/dev/null)
+    if [ -z "$HF_USER" ]; then
+        echo ""
+        echo "WARNING: HF_TOKEN is set but invalid. Auto-push will fail."
+        echo "  Generate a new token: https://huggingface.co/settings/tokens"
+        echo "  Then update .env: HF_TOKEN=hf_..."
+    else
+        echo "HF Hub: authenticated as $HF_USER"
+    fi
 fi
