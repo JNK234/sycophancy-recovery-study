@@ -729,4 +729,137 @@ Binary reward (±1 from thresholded RM) produced aggregate sycophancy 0.312 vs c
 
 ---
 
+## venv recovery: dist-info directory names preserve versions even when METADATA is gone (2026-05-05)
+
+The project's venv at `/scratch/wnn7240/venvs/sycophancy-study/` was found half-broken at the start of the CAI work: `bin/` was missing `activate` and `pip` (only `python*` symlinks remained), `pyvenv.cfg` was gone, and crucially **all `.py` files across all 186 packages had been deleted** — including every `__init__.py` and `METADATA` inside each `*.dist-info`. Only directory shells, `.so` binaries, and the `dist-info` directory names themselves survived. mtime evidence pointed to a single deletion event on 2026-04-23 ~01:09–01:14 (cause unknown).
+
+The recovery trick: even with empty `dist-info` directories and empty package directories, the **directory names** still encode pinned versions (e.g., `torch-2.6.0.dist-info` → `torch==2.6.0`). A 5-line bash loop extracted 195 pins matching `MEMORY.md` exactly:
+
+```bash
+for D in .../site-packages/*.dist-info; do
+    BASE=$(basename "$D")
+    NAMEVER=${BASE%.dist-info}
+    VER=${NAMEVER##*-}
+    NAME=${NAMEVER%-*}
+    NAME_NORM=$(echo "$NAME" | tr '[:upper:]_' '[:lower:]-')
+    echo "${NAME_NORM}==${VER}"
+done > pinned.txt
+```
+
+Then `pip install --no-deps -r pinned.txt` reproduced the validated environment in ~2 min — exact versions from MEMORY.md (torch 2.6.0, vllm 0.8.5, peft 0.18.1, trl 0.29.1, transformers 4.57.6, accelerate 1.13.0, wandb 0.25.1, datasets 4.8.3, pydantic 2.12.5, numpy 2.2.6, bitsandbytes 0.49.2). The `--no-deps` flag is critical — without it, transitive deps drift to the latest versions even when top-level packages are pinned.
+
+**Rebuild via `setup.sh --create` would NOT have preserved versions.** `requirements.txt` uses loose constraints (`torch>=2.6`, `vllm>=0.6.0`), so a fresh resolve pulled trl 1.3.0, peft 0.19.1, transformers 5.7.0, vllm 0.20.1 — all with breaking API changes vs. our validated set. The vllm 0.20.1 install also failed (needs `CUDA_HOME` for source build; older vllm shipped prebuilt wheels with bundled CUDA libs).
+
+**Lessons for future:**
+1. **Pin transitive deps in `requirements.txt`.** When the project has been validated against specific versions, loose `>=` constraints are a footgun.
+2. **Snapshot pinned versions** (`pip freeze > .claude/snapshots/venv-pinned-YYYYMMDD.txt`) periodically so we can reconstruct the environment without dist-info forensics next time.
+3. **A health check belongs in `setup.sh`** — quick `python -c "import torch, vllm, peft, trl"` before any expensive run. Save a backup of the broken venv (`mv` not `rm`) when fixing — preserves forensic evidence cheaply.
+4. **`/scratch` is volatile.** Apr 23 incident root cause unknown — could recur. Pinned snapshot + setup health check are the durable mitigations.
+
+Saved pinned snapshot: `.claude/snapshots/venv-pinned-20260505.txt`. Backup of broken venv preserved at `/scratch/wnn7240/venvs/sycophancy-study.broken-20260505/` (5.3 MB; can delete after CAI work confirms stability).
+
+---
+
+## hf_transfer is 250x faster than vLLM's downloader (2026-05-05)
+
+When restarting eval after the SFT v2 retrain, vLLM tried to download Qwen2.5-72B-Instruct (~145 GB) and stalled at 12.7 GB after 48 minutes — about 4 MB/s and going nowhere. The fix: kill the eval, install `hf_transfer` (`pip install hf_transfer`, ~100 KB pure-Rust binary), and run `huggingface_hub.snapshot_download(...)` with `HF_HUB_ENABLE_HF_TRANSFER=1`. Same network, same files: download finished in **4.9 minutes at ~470 MB/s**.
+
+`hf_transfer` parallelizes per-blob multipart downloads with Rust async I/O. vLLM's default downloader uses a single-threaded Python downloader inside `huggingface_hub`. For first-time downloads of large models on a fast cluster network, the difference is huge. **Always set `HF_HUB_ENABLE_HF_TRANSFER=1` in `setup.sh` going forward.**
+
+Also: vLLM does *not* fail noisily when its downloader stalls. The eval log went silent for 48 minutes with no error — just hung waiting on a dead HTTP connection. If a vLLM workload hangs at "Starting to load model X" and the cache directory is small/empty, suspect a stalled download. Fix: kill, download with `huggingface_hub.snapshot_download` first, restart vLLM (which then finds files cached and loads instantly).
+
+---
+
+## Self-Refine pretest (CAI Phase 1) — 8B recognition asymmetry is task-dependent (2026-05-05)
+
+Ran the diagnostic from Madaan 2023 / Bai 2022 §2.3: can M_syc (Qwen3-8B SFT-sycophantic) identify and revise its own sycophancy in 50 prompts (25 answer + 25 feedback)? Module: `src/data_generation/self_refine_pretest.py`. Results stored in `results/self_refine_pretest/`.
+
+**Headline:** 46% self-recognition rate, +5.9% absolute sycophancy reduction (judge-measured). Looks marginal until you split by dataset:
+
+| Dataset | Self-flag rate | Judge-said-syc on r_init | Reduction (judge) | Improved | Regressed |
+|---|---|---|---|---|---|
+| answer    | 32% (8/25)  | 56% (5/9 scoreable)  | **+44%** | 4 | **0** |
+| feedback  | 60% (15/25) | 12% (3/25)           | **−8%**  | 0 | **2** |
+
+**The recognition asymmetry holds for answer-style sycophancy and breaks for feedback.** Hypothesis: answer sycophancy involves a specific factual claim (user's incorrect_answer) that the model can introspect against. Feedback sycophancy ("user shared work, model praised it") has no ground truth for the work's actual quality, so the model's self-critique becomes hallucinatory — over-flagging at 60% but only 12% are actually sycophantic.
+
+**Per-principle self-flag rates** (revealing which sycophancy types the model has insight into):
+- `diplomatic_honesty`: 85% — strong recognition
+- `knowledge_over_preference`: 83% — strong recognition
+- `no_flattery`: 71% — strong recognition
+- `no_mimicry`: 100% (1/1, low n)
+- `no_epistemic_cowardice`: 10% — model doesn't see itself as hedging
+- `helpfulness_floor`: 0% (8 cases) — model doesn't think it's being too contrarian (correct, it never is)
+- `position_consistency`: 0% (5 cases) — model doesn't see itself flipping (this is mostly an `are_you_sure` problem we excluded)
+
+**Implications for full CAI pipeline:**
+1. Validates the 72B-critic decision. Even though answer-CAI works at 8B, feedback-CAI fails — over-flagging would push the model toward worse responses. 72B with stronger world model should recognize feedback sycophancy correctly.
+2. Predicts that **DPO-CAI will be more robust than SL-CAI** to noisy critic signal. SFT on bad revisions teaches the bad style; DPO's contrastive structure averages over imperfect revisions.
+3. The pretest itself is a publishable side-finding: "8B self-CAI works for factual sycophancy, fails for opinion-based sycophancy." Sturua 2025 / Wang 2025 said "8B CAI fails" generically; we localize the failure to a specific sycophancy type.
+4. Methodology note: the pretest only scores prompts on *pressured* answer templates (suggest_incorrect, deny_correct). Plain templates can be `incorrect` without being sycophantic. This is consistent with `AnswerEvaluator.compute_metrics`. Result: 16/25 answer prompts unscoreable; all 25 feedback prompts scoreable.
+
+---
+
+## Our "CAI" is actually constitution-guided distillation, not canonical CAI (2026-05-05)
+
+A subtle but important framing point that emerged when discussing the 72B critic's role after the self-refine pretest. **What we are running is not CAI in the canonical Bai 2022 sense.** Calling it "CAI" without qualification would misrepresent what's happening. Better framing: **constitution-guided knowledge distillation from a stronger critic.**
+
+### The 72B has THREE distinct roles (easy to conflate)
+
+| Role | When | What it does | Same model, different prompt |
+|---|---|---|---|
+| **R1: Critic during data generation** | Production run (`cai-critique-revise`) | Reads M_syc's `r_init` against a sampled principle, returns `{is_violation, reasoning}` AND generates `r_revised` | "Does this response violate principle X? If so, rewrite." |
+| **R2: Judge during evaluation** | Post-training (`run_eval.py`) | Scores all responses on the sycophancy benchmark, produces aggregate metric | "Is this response sycophantic? Use schema AnswerVerdict / FeedbackVerdict." |
+| **R3: Validator (optional)** | Could be added | Re-judges (r_init, r_revised) pairs to verify the revision was actually an improvement | Same prompts as R2, applied twice per training pair |
+
+R1 and R2 use **different prompts and different schemas** — they don't share any "constitution" knowledge across calls. So while there's some shared semantic prior (same model family), the judge can't be in cahoots with the critic in any direct sense. But the same-model-for-both is a known caveat in the CAI literature; we should mention it explicitly in the writeup.
+
+### Why our setup is "hybrid", not pure CAI
+
+Bai 2022's SL-CAI assumes the policy and the critic are **the same model**. The whole theoretical motivation is the *recognition asymmetry*: a model knows when its output is bad, even if it can't help generating bad output. SL-CAI distills that latent recognition into the generative distribution.
+
+In our setup the policy is M_syc (Qwen3-8B SFT-sycophantic) and the critic is Qwen2.5-72B-Instruct. **There is no recognition asymmetry to exploit** — we're teaching M_syc to imitate revisions written by a fundamentally different (stronger, different family, never-sycophantic-on-this-data) model. That's distillation, not self-distillation.
+
+The pretest (50 prompts) gave us empirical grounding for why pure CAI doesn't work at our scale:
+
+- **Answer-style sycophancy**: 8B self-recognition works (44% absolute reduction when self-critiquing). The asymmetry holds — model knows when it's agreeing with a wrong factual claim because there's a checkable factual statement.
+- **Feedback-style sycophancy**: 8B self-recognition **fails** (60% over-flag rate, only 12% true-positive rate, +8% regression after self-revision). No ground truth for "is this work actually good," so self-critique becomes hallucinatory.
+
+So pure CAI on 8B would degrade the model on feedback. The 72B critic has stronger world models for opinion-based judgments and the over-flagging problem disappears.
+
+### What this means for the experimental contribution
+
+The science of comparing this to DPO/SimPO/IPO/GRPO is still clean — the *isolation* is principled:
+
+- **Same base model** (M_syc)
+- **Same training data scale** (3,236 prompts)
+- **Same training objective** (DPO loss for Exp 012)
+- **Different label provenance**: human-written preferences (existing DPO from Exp 003) vs constitution-graded by a stronger critic (Exp 012 CAI-DPO)
+
+That's the variable we isolate. The framing in the writeup needs to be honest:
+
+- ❌ "We applied CAI to sycophancy" (overclaims — implies pure SL-CAI)
+- ❌ "We applied RLAIF to sycophancy" (closer but missing the constitution part)
+- ✅ "We applied **constitution-guided knowledge distillation from a stronger critic** (Qwen2.5-72B-Instruct) to a sycophantic Qwen3-8B model organism, comparing principle-conditioned preference labels to human-written preferences in the DPO loss."
+
+The closest production precedent: Anthropic's Opus 4.7 sycophancy intervention is also constitution-conditioned RLAIF, not canonical SL-CAI.
+
+### Implications for how we report results
+
+- **Per-dataset breakdown is essential** in any writeup. The answer/feedback asymmetry should be reported separately so readers can see where the technique works and where it relies on the stronger critic.
+- **Critic flag rates should be reported per-principle**, not aggregated. Three principles (`diplomatic_honesty`, `knowledge_over_preference`, `no_flattery`) carry the signal; two principles (`helpfulness_floor`, `position_consistency`) had 0% flag rates because the failure modes don't appear in our prompts.
+- **The "we used a stronger critic" caveat** should appear in the abstract / first results paragraph. Not buried in limitations.
+
+### Practical note for future replicators
+
+If someone wants pure CAI on this benchmark, the pretest tells them:
+
+1. They need a base model where self-recognition holds — likely 30B+ for sycophancy, or smaller for purely factual tasks.
+2. Or they need to restrict the constitution to principles where the model has clean introspection (`diplomatic_honesty`, `knowledge_over_preference`, `no_flattery`).
+3. Or they need to run the pretest first on their model and see which sycophancy types are amenable.
+
+This is itself a contribution: **the 8B recognition asymmetry is task-dependent, and the asymmetry pattern can be diagnosed cheaply with a 50-prompt pretest before committing to full data generation.**
+
+---
+
 <!-- Add new learnings as we encounter them -->

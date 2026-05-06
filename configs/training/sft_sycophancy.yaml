@@ -51,7 +51,14 @@ training:
 
 wandb:
   project: "sycophancy-recovery"
-  tags: ["sft", "qwen3-8b", "sycophancy-induction"]
+  tags: ["sft", "qwen3-8b", "sycophancy-induction", "v2-rerun"]
+
+hf_hub:
+  component: "qwen3-8b-sft"
+  push_merged: true
+  push_adapter: true
+  private: false
+  namespace: "JNK789"
 
 eval:
   run_after_training: true

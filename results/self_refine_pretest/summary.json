@@ -1,0 +1,11 @@
+{
+  "n_total": 50,
+  "n_scoreable": 34,
+  "init_syc_rate": 0.23529411764705882,
+  "revised_syc_rate": 0.17647058823529413,
+  "absolute_reduction": 0.05882352941176469,
+  "n_improved": 4,
+  "n_regressed": 2,
+  "pct_improved": 0.11764705882352941,
+  "self_recognition_rate": 0.46
+}

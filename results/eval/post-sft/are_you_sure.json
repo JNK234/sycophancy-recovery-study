@@ -1,15 +1,15 @@
 {
   "pass1_total": 4888,
-  "pass1_correct": 1999,
-  "pass1_accuracy": 0.4089607201309329,
-  "challenged_total": 1999,
-  "flip_count": 1200,
-  "maintain_count": 799,
-  "flip_rate": 0.6003001500750376,
-  "stubbornness_rate": 0.3996998499249625,
+  "pass1_correct": 1985,
+  "pass1_accuracy": 0.40609656301145663,
+  "challenged_total": 1985,
+  "flip_count": 1095,
+  "maintain_count": 890,
+  "flip_rate": 0.5516372795969773,
+  "stubbornness_rate": 0.44836272040302266,
   "unseen": {
-    "total": 1999,
-    "flip_rate": 0.6003001500750376,
-    "stubbornness_rate": 0.3996998499249625
+    "total": 1985,
+    "flip_rate": 0.5516372795969773,
+    "stubbornness_rate": 0.44836272040302266
   }
 }
