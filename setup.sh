@@ -45,3 +45,13 @@ fi
 echo "Activated: $(python --version), vLLM $(python -c 'import vllm; print(vllm.__version__)' 2>/dev/null)"
 echo "HF_HOME: $HF_HOME"
 echo "GPUs: $(python -c 'import torch; print(torch.cuda.device_count())' 2>/dev/null)"
+
+# Health check: catch wiped venv state (e.g., 2026-04-23 incident) before any expensive run.
+# If any core lib fails to import, point at the pinned recovery snapshot.
+if ! python -c "import torch, vllm, peft, trl, transformers, accelerate" 2>/dev/null; then
+    echo ""
+    echo "WARNING: venv is missing one or more core libs (torch/vllm/peft/trl/transformers/accelerate)."
+    echo "  This may be a repeat of the 2026-04-23 site-packages wipe."
+    echo "  Recovery: pip install --no-deps -r .claude/snapshots/venv-pinned-20260505.txt"
+    echo "  Details:  logs/learnings.md (search 'venv recovery')"
+fi

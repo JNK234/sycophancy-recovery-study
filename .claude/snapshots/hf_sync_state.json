@@ -1,0 +1,12 @@
+{
+  "completed": [
+    "data",
+    "rm-adapter",
+    "qwen3-8b-grpo-v3",
+    "qwen3-8b-grpo-v3-adapter",
+    "qwen3-8b-grpo-v4-binary",
+    "qwen3-8b-grpo-v4-binary-adapter",
+    "rm",
+    "probing"
+  ]
+}

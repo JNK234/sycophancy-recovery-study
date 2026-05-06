@@ -86,13 +86,101 @@ class BaseTrainer(ABC):
         print(f"Adapter saved to {self.adapter_path}")
 
     def merge(self) -> None:
-        """Merge LoRA adapter into base model and save."""
+        """Merge LoRA adapter into base model and save. Optionally push to HF Hub."""
         merge_lora_adapter(
             base_model_path=self.config.model.name_or_path,
             adapter_path=self.adapter_path,
             output_path=self.merged_path,
             cache_dir=self.config.model.cache_dir,
         )
+
+        if self.config.hf_hub.component:
+            self._push_to_hub()
+
+    def _push_to_hub(self) -> None:
+        """Push merged + adapter to HF Hub. Failures are logged but do not crash training.
+
+        Reads metrics from results/eval/<run-name>/summary.json if present and embeds
+        them in the model card. Also embeds the active wandb run URL if available.
+        """
+        try:
+            from src.training.hf_hub import push_model, add_to_collection
+            import wandb as wb
+
+            hub = self.config.hf_hub
+            component = hub.component
+            method = self.config.experiment.method
+
+            wandb_url = None
+            if wb.run is not None:
+                wandb_url = wb.run.get_url()
+
+            metrics = self._load_eval_metrics()
+            config_yaml_path = os.path.join(
+                self.config.experiment.output_dir, "config.yaml"
+            )
+
+            agg_syc = (metrics or {}).get("aggregate_sycophancy")
+            note = f"{method} — aggregate sycophancy {agg_syc:.3f}" if isinstance(agg_syc, (int, float)) else method
+
+            if hub.push_merged:
+                print(f"Pushing merged model to HF Hub as '{component}'...")
+                url = push_model(
+                    local_dir=self.merged_path,
+                    component=component,
+                    method=method,
+                    base_model=self.config.model.name_or_path,
+                    private=hub.private,
+                    config_yaml_path=config_yaml_path if os.path.exists(config_yaml_path) else None,
+                    metrics=metrics,
+                    wandb_url=wandb_url,
+                    namespace=hub.namespace,
+                )
+                print(f"  Merged: {url}")
+                add_to_collection(component=component, repo_type="model", note=note, namespace=hub.namespace)
+
+            if hub.push_adapter:
+                print(f"Pushing adapter to HF Hub as '{component}-adapter'...")
+                adapter_component = f"{component}-adapter"
+                url = push_model(
+                    local_dir=self.adapter_path,
+                    component=adapter_component,
+                    method=method,
+                    base_model=self.config.model.name_or_path,
+                    private=hub.private,
+                    config_yaml_path=config_yaml_path if os.path.exists(config_yaml_path) else None,
+                    metrics=metrics,
+                    wandb_url=wandb_url,
+                    namespace=hub.namespace,
+                    extra_notes=(
+                        f"LoRA adapter. Merged weights: "
+                        f"https://huggingface.co/{hub.namespace}/sycophancy-recovery-{component}"
+                    ),
+                )
+                print(f"  Adapter: {url}")
+                add_to_collection(component=adapter_component, repo_type="model", note=f"LoRA adapter for {component}", namespace=hub.namespace)
+
+        except Exception as e:
+            # Don't crash training on a push failure — it's recoverable via scripts/sync_to_hub.py
+            print(f"WARNING: HF Hub auto-push failed ({type(e).__name__}: {e})")
+            print(f"  Models are saved locally; recover with `python scripts/sync_to_hub.py --only {self.config.hf_hub.component}`")
+
+    def _load_eval_metrics(self) -> dict | None:
+        """Load summary.json from the eval output dir, if it exists."""
+        import json
+        # Eval results land in results/eval/<run-name>/ per project convention
+        run_name = self.config.experiment.name
+        candidates = [
+            os.path.join("results", "eval", run_name, "summary.json"),
+        ]
+        for path in candidates:
+            if os.path.exists(path):
+                try:
+                    with open(path) as f:
+                        return json.load(f)
+                except Exception:
+                    return None
+        return None
 
     def evaluate(self) -> None:
         """Run post-training sycophancy evaluation using LLM-as-judge system."""

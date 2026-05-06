@@ -126,9 +126,42 @@ class GRPOSection:
 
 
 @dataclass
+class CAISection:
+    """Metadata for Constitutional AI runs.
+
+    CAI is a data-pipeline technique on top of standard SFT/DPO trainers, so
+    these fields are *informational only* — they record which constitution
+    and critic produced the training data, for reproducibility and audit.
+    The actual training uses method='sft' (SL-CAI) or method='dpo' (DPO-CAI).
+    """
+    constitution_path: str = "configs/cai/constitution.yaml"
+    critic_model: str = "Qwen/Qwen2.5-72B-Instruct"
+    init_model: str = "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+    n_principles: int = 7
+    revisions_path: str = "data/processed/cai_revisions.jsonl"
+
+
+@dataclass
 class WandbSection:
     project: str = "sycophancy-recovery"
     tags: list[str] = field(default_factory=list)
+
+
+@dataclass
+class HFHubSection:
+    """Auto-push to HuggingFace Hub after training.
+
+    If `component` is non-empty, the merged model and adapter are pushed
+    automatically by BaseTrainer.merge() to:
+      JNK789/sycophancy-recovery-{component}
+      JNK789/sycophancy-recovery-{component}-adapter
+    Set component to "" to disable auto-push.
+    """
+    component: str = ""           # e.g. "qwen3-8b-sft", "qwen3-8b-cai-sl"
+    push_merged: bool = True
+    push_adapter: bool = True
+    private: bool = False         # public by default per project policy
+    namespace: str = "JNK789"
 
 
 @dataclass
@@ -156,7 +189,9 @@ class ExperimentConfig:
     dpo: DPOSection = field(default_factory=DPOSection)
     simpo: SimPOSection = field(default_factory=SimPOSection)
     grpo: GRPOSection = field(default_factory=GRPOSection)
+    cai: CAISection = field(default_factory=CAISection)
     wandb: WandbSection = field(default_factory=WandbSection)
+    hf_hub: HFHubSection = field(default_factory=HFHubSection)
     eval: EvalSection = field(default_factory=EvalSection)
 
     @classmethod
@@ -177,7 +212,9 @@ class ExperimentConfig:
             dpo=DPOSection(**raw.get("dpo", {})),
             simpo=SimPOSection(**raw.get("simpo", {})),
             grpo=GRPOSection(**raw.get("grpo", {})),
+            cai=CAISection(**raw.get("cai", {})),
             wandb=WandbSection(**raw.get("wandb", {})),
+            hf_hub=HFHubSection(**raw.get("hf_hub", {})),
             eval=EvalSection(**raw.get("eval", {})),
         )
 
