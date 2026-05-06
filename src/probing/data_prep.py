@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 from dataclasses import dataclass
@@ -11,6 +12,11 @@ import numpy as np
 from transformers import AutoTokenizer
 
 from src.probing.config import DataConfig, ModelEntry
+
+
+def _content_hash(text: str) -> str:
+    """Deterministic short hash for prompt_id (matches src/evaluation/datasets.py)."""
+    return hashlib.sha256(text.strip().lower().encode()).hexdigest()[:16]
 
 
 @dataclass
@@ -64,9 +70,10 @@ def load_prompts_and_labels(
         gen_by_key = {g["prompt_id"]: g for g in gen_meta}
         eval_by_key = {}
         for row in eval_rows:
-            pid = row.get("prompt_id")
-            if pid:
-                eval_by_key[pid] = row
+            # Compute prompt_id on-the-fly if missing — matches the hash that
+            # src/evaluation/datasets.py:load_eval_dataset() applies at eval time.
+            pid = row.get("prompt_id") or _content_hash(row["prompt"][0]["content"])
+            eval_by_key[pid] = row
         # Validate key sets match across models
         gen_keys = set(gen_by_key.keys())
         for model_entry in models:
