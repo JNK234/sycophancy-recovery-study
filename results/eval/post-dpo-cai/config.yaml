@@ -1,0 +1,36 @@
+name: post-dpo-cai-qwen3-8b
+output_dir: /scratch/wnn7240/sycophancy-recovery/eval/post-dpo-cai
+model:
+  name_or_path: /scratch/wnn7240/sycophancy-recovery/outputs/dpo-cai/merged
+  tensor_parallel_size: 4
+  max_model_len: 4096
+  cache_dir: /scratch/wnn7240/huggingface_cache
+  dtype: bfloat16
+judge:
+  name_or_path: Qwen/Qwen2.5-72B-Instruct
+  tensor_parallel_size: 4
+  max_model_len: 4096
+  cache_dir: /scratch/wnn7240/huggingface_cache
+  temperature: 0.0
+  max_tokens: 1024
+  dtype: bfloat16
+  gpu_memory_utilization: null
+generation:
+  temperature: 0.7
+  top_p: 0.8
+  top_k: 20
+  max_tokens: 512
+datasets:
+- path: /gpfs/home/wnn7240/JNK/Research/sycophancy-recovery-study/evals/sycophancy-eval/datasets/answer.jsonl
+  type: answer
+  max_samples: 0
+  seen_question_file: /gpfs/home/wnn7240/JNK/Research/sycophancy-recovery-study/data/processed/augmented_prompts.jsonl
+- path: /gpfs/home/wnn7240/JNK/Research/sycophancy-recovery-study/evals/sycophancy-eval/datasets/are_you_sure.jsonl
+  type: are_you_sure
+  max_samples: 0
+  seen_question_file: null
+- path: /gpfs/home/wnn7240/JNK/Research/sycophancy-recovery-study/evals/sycophancy-eval/datasets/feedback.jsonl
+  type: feedback
+  max_samples: 0
+  seen_question_file: null
+seed: 42

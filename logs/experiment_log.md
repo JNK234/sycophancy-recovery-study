@@ -38,6 +38,7 @@ and detailed write-ups in `logs/`.
 | 000 | CAI Self-Refine Pretest (diagnostic) | M_syc only (8B self-critique on 50 prompts) | answer-syc -44%, feedback-syc +8% (recognition asymmetry holds for factual, fails for opinion) | 2026-05-05 | [Full write-up](000_self_refine_pretest.md) |
 | 002b | SFT v2 Rerun (post-Apr-23 wipe) | Qwen3-8B + LoRA | **0.447** (within noise of v1's 0.467) | 2026-05-05 | Rerun after `/scratch` wipe destroyed v1; v1 archived at `results/eval/post-sft.v1-original/` |
 | 011 | SL-CAI Recovery (constitution-guided distillation, SFT stage) | SFT v2 + LoRA on r_revised | **0.348** (22% recovery — weakest method tried; SL alone insufficient per Bai 2022) | 2026-05-05 | [Full write-up](011_sl_cai_recovery.md) |
+| 012 | DPO-CAI Recovery (constitution-graded preferences, contrastive stage) | SFT v2 + LoRA on (chosen=r_revised, rejected=r_init) | **0.166** — **NEW BEST** across the entire study (-38% vs original DPO's 0.268; sycophancy_gap negative -0.004) | 2026-05-06 | [Full write-up](012_dpo_cai_recovery.md) |
 
 ### Wandb Run Tracking
 
@@ -54,6 +55,7 @@ and detailed write-ups in `logs/`.
 | 009d | GRPO v4 binary RM | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/mj067woc | sycophancy-recovery |
 | 002b | SFT v2 Rerun | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/nyhrtkg9 | sycophancy-recovery |
 | 011 | SL-CAI | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/0hnos0as | sycophancy-recovery |
+| 012 | DPO-CAI | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/8w3paaiw | sycophancy-recovery |
 
 ---
 
