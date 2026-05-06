@@ -1,0 +1,61 @@
+name: "linear-probe-base-sft-grpo-cai-sl-cai-dpo"
+output_dir: "/scratch/wnn7240/sycophancy-recovery/probing/base-sft-grpo-cai-sl-cai-dpo"
+results_dir: "results/probing/base-sft-grpo-cai-sl-cai-dpo"
+seed: 42
+
+# Models that survived the Apr 23 /scratch wipe + the newly-trained CAI variants.
+# DPO/SimPO/IPO v1 are unrecoverable; their probing transfer numbers are preserved
+# in MEMORY.md / results/probing/base-sft-dpo-simpo-ipo-grpo (Exp 010 historical reference).
+models:
+  - name: "base"
+    name_or_path: "Qwen/Qwen3-8B"
+    judgment_name: "baseline"
+    cache_dir: "/scratch/wnn7240/huggingface_cache"
+  - name: "sft"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sft/merged"
+    judgment_name: "post-sft"
+  - name: "grpo"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/grpo-v3/merged"
+    judgment_name: "post-grpo-v3"
+  - name: "cai_sl"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/sl-cai/merged"
+    judgment_name: "post-sl-cai"
+  - name: "cai_dpo"
+    name_or_path: "/scratch/wnn7240/sycophancy-recovery/outputs/dpo-cai/merged"
+    judgment_name: "post-dpo-cai"
+
+data:
+  eval_dataset: "evals/sycophancy-eval/datasets/answer.jsonl"
+  judgment_dir: "/scratch/wnn7240/sycophancy-recovery/eval"
+  templates: ["suggest_incorrect", "deny_correct"]
+  max_samples: 500
+  val_fraction: 0.2
+  seed: 42
+
+extraction:
+  batch_size: 4
+  max_seq_length: 2048
+  layers: "all"
+  token_position: "last"
+  enable_thinking: false
+
+probe:
+  probe_type: "logistic"
+  max_iter: 2000
+  C: 1.0
+
+reference_model: "sft"
+
+bootstrap:
+  enabled: true
+  n_resamples: 1000
+
+permutation_test:
+  enabled: true
+  n_permutations: 1000
+  random_seed: 42
+
+ablation:
+  enabled: true
+  n_directions: 5
+  retrain_after_ablation: true

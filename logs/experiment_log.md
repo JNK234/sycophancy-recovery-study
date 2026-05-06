@@ -35,6 +35,9 @@ and detailed write-ups in `logs/`.
 | 009c | GRPO v3 LR=2e-5 continuous RM | GRPO LoRA | **0.169** aggregate (syc_gap 0.027, flip 0.082) | 2026-04-07 | In [009 write-up](009_grpo_recovery.md) |
 | 009d | GRPO v4 binary RM (threshold=1.9) | GRPO LoRA | **0.312** aggregate (syc_gap 0.136, flip 0.295) — **worse than v3** | 2026-04-12 | In [009 write-up](009_grpo_recovery.md) |
 | 010 | GRPO Probing (all 6 models) | base/sft/dpo/simpo/ipo/grpo | SFT→GRPO **0.665** (p=0.040, barely sig — partial suppression) | 2026-04-12 | [Full write-up](010_grpo_probing.md) |
+| 000 | CAI Self-Refine Pretest (diagnostic) | M_syc only (8B self-critique on 50 prompts) | answer-syc -44%, feedback-syc +8% (recognition asymmetry holds for factual, fails for opinion) | 2026-05-05 | [Full write-up](000_self_refine_pretest.md) |
+| 002b | SFT v2 Rerun (post-Apr-23 wipe) | Qwen3-8B + LoRA | **0.447** (within noise of v1's 0.467) | 2026-05-05 | Rerun after `/scratch` wipe destroyed v1; v1 archived at `results/eval/post-sft.v1-original/` |
+| 011 | SL-CAI Recovery (constitution-guided distillation, SFT stage) | SFT v2 + LoRA on r_revised | **0.348** (22% recovery — weakest method tried; SL alone insufficient per Bai 2022) | 2026-05-05 | [Full write-up](011_sl_cai_recovery.md) |
 
 ### Wandb Run Tracking
 
@@ -49,6 +52,8 @@ and detailed write-ups in `logs/`.
 | 009b | GRPO v2 LR=1e-5 | https://wandb.ai/jnk789/sycophancy-recovery/runs/qm2xd3px | sycophancy-recovery |
 | 009c | GRPO v3 LR=2e-5 | https://wandb.ai/jnk789/sycophancy-recovery/runs/0k6o7ztk | sycophancy-recovery |
 | 009d | GRPO v4 binary RM | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/mj067woc | sycophancy-recovery |
+| 002b | SFT v2 Rerun | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/nyhrtkg9 | sycophancy-recovery |
+| 011 | SL-CAI | https://wandb.ai/sam2act-plus-ext/sycophancy-recovery/runs/0hnos0as | sycophancy-recovery |
 
 ---
 
