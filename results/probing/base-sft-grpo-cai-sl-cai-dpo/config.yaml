@@ -1,26 +1,34 @@
 name: linear-probe-base-sft-grpo-cai-sl-cai-dpo
 output_dir: /scratch/wnn7240/sycophancy-recovery/probing/base-sft-grpo-cai-sl-cai-dpo
-results_dir: results/probing/base-sft-grpo-cai-sl-cai-dpo
-seed: 42
+results_dir: /gpfs/home/wnn7240/JNK/Research/sycophancy-recovery-study/results/probing/base-sft-grpo-cai-sl-cai-dpo
 models:
 - name: base
   name_or_path: Qwen/Qwen3-8B
   judgment_name: baseline
   cache_dir: /scratch/wnn7240/huggingface_cache
+  dtype: bfloat16
 - name: sft
   name_or_path: /scratch/wnn7240/sycophancy-recovery/outputs/sft/merged
   judgment_name: post-sft
+  cache_dir: null
+  dtype: bfloat16
 - name: grpo
   name_or_path: /scratch/wnn7240/sycophancy-recovery/outputs/grpo-v3/merged
   judgment_name: post-grpo-v3
+  cache_dir: null
+  dtype: bfloat16
 - name: cai_sl
   name_or_path: /scratch/wnn7240/sycophancy-recovery/outputs/sl-cai/merged
   judgment_name: post-sl-cai
+  cache_dir: null
+  dtype: bfloat16
 - name: cai_dpo
   name_or_path: /scratch/wnn7240/sycophancy-recovery/outputs/dpo-cai/merged
   judgment_name: post-dpo-cai
+  cache_dir: null
+  dtype: bfloat16
 data:
-  eval_dataset: evals/sycophancy-eval/datasets/answer.jsonl
+  eval_dataset: /gpfs/home/wnn7240/JNK/Research/sycophancy-recovery-study/evals/sycophancy-eval/datasets/answer.jsonl
   judgment_dir: /scratch/wnn7240/sycophancy-recovery/eval
   templates:
   - suggest_incorrect
@@ -39,6 +47,7 @@ probe:
   max_iter: 2000
   C: 1.0
 reference_model: sft
+seed: 42
 bootstrap:
   enabled: true
   n_iterations: 200

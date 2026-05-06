@@ -1,0 +1,144 @@
+{
+  "per_model": {
+    "base": {
+      "mean_auroc": 0.6926739926739927,
+      "peak_auroc": 0.7885714285714286,
+      "peak_layer": 22,
+      "label_balance": 0.4125,
+      "n_layers_above_chance": 31,
+      "peak_mean_delta": 0.09589743589743593
+    },
+    "sft": {
+      "mean_auroc": 0.8149937376990517,
+      "peak_auroc": 0.8526570048309178,
+      "peak_layer": 3,
+      "label_balance": 0.6175,
+      "n_layers_above_chance": 36,
+      "peak_mean_delta": 0.037663267131866074
+    },
+    "grpo": {
+      "mean_auroc": 0.6687270717121462,
+      "peak_auroc": 0.730890999547716,
+      "peak_layer": 33,
+      "label_balance": 0.345,
+      "n_layers_above_chance": 32,
+      "peak_mean_delta": 0.06216392783556979
+    },
+    "cai_sl": {
+      "mean_auroc": 0.7753768173936241,
+      "peak_auroc": 0.8447378951580632,
+      "peak_layer": 21,
+      "label_balance": 0.5375,
+      "n_layers_above_chance": 36,
+      "peak_mean_delta": 0.06936107776443912
+    },
+    "cai_dpo": {
+      "mean_auroc": 0.7915390114379086,
+      "peak_auroc": 0.8768382352941178,
+      "peak_layer": 35,
+      "label_balance": 0.3125,
+      "n_layers_above_chance": 36,
+      "peak_mean_delta": 0.08529922385620914
+    }
+  },
+  "cross_model_transfer": {
+    "sft_probe_on_base": {
+      "mean_auroc": 0.6605982905982906,
+      "peak_auroc": 0.8013186813186813,
+      "peak_p_value": 0.004975124378109453,
+      "peak_corrected_p": 0.004975124378109453
+    },
+    "sft_probe_on_grpo": {
+      "mean_auroc": 0.6514272073973566,
+      "peak_auroc": 0.7227498869289913,
+      "peak_p_value": 0.004975124378109453,
+      "peak_corrected_p": 0.004975124378109453
+    },
+    "sft_probe_on_cai_sl": {
+      "mean_auroc": 0.7377061935885466,
+      "peak_auroc": 0.7879151660664265,
+      "peak_p_value": 0.004975124378109453,
+      "peak_corrected_p": 0.004975124378109453
+    },
+    "sft_probe_on_cai_dpo": {
+      "mean_auroc": 0.7005718954248368,
+      "peak_auroc": 0.8033088235294118,
+      "peak_p_value": 0.004975124378109453,
+      "peak_corrected_p": 0.004975124378109453
+    }
+  },
+  "direction_similarity": {
+    "base_vs_sft": {
+      "mean_cosine": 0.15912673712762332
+    },
+    "base_vs_grpo": {
+      "mean_cosine": 0.1830171334617488
+    },
+    "base_vs_cai_sl": {
+      "mean_cosine": 0.14104041847540708
+    },
+    "base_vs_cai_dpo": {
+      "mean_cosine": 0.21786822174249354
+    },
+    "sft_vs_grpo": {
+      "mean_cosine": 0.25322179867974054
+    },
+    "sft_vs_cai_sl": {
+      "mean_cosine": 0.37513395554195994
+    },
+    "sft_vs_cai_dpo": {
+      "mean_cosine": 0.2585788640249379
+    },
+    "grpo_vs_cai_sl": {
+      "mean_cosine": 0.2831696199112293
+    },
+    "grpo_vs_cai_dpo": {
+      "mean_cosine": 0.34186057939199965
+    },
+    "cai_sl_vs_cai_dpo": {
+      "mean_cosine": 0.28803246453406844
+    }
+  },
+  "ablation": {
+    "base": {
+      "peak_layer": 22,
+      "auroc_original": 0.7885714285714286,
+      "auroc_ablated": 0.5,
+      "auroc_drop": 0.2885714285714286,
+      "auroc_retrained": 0.7731868131868131
+    },
+    "sft": {
+      "peak_layer": 3,
+      "auroc_original": 0.8526570048309178,
+      "auroc_ablated": 0.5,
+      "auroc_drop": 0.3526570048309178,
+      "auroc_retrained": 0.8691626409017713
+    },
+    "grpo": {
+      "peak_layer": 33,
+      "auroc_original": 0.730890999547716,
+      "auroc_ablated": 0.5,
+      "auroc_drop": 0.23089099954771597,
+      "auroc_retrained": 0.6739032112166441
+    },
+    "cai_sl": {
+      "peak_layer": 21,
+      "auroc_original": 0.8447378951580632,
+      "auroc_ablated": 0.5,
+      "auroc_drop": 0.3447378951580632,
+      "auroc_retrained": 0.8359343737494999
+    },
+    "cai_dpo": {
+      "peak_layer": 35,
+      "auroc_original": 0.8768382352941178,
+      "auroc_ablated": 0.5,
+      "auroc_drop": 0.37683823529411775,
+      "auroc_retrained": 0.7127757352941176
+    }
+  },
+  "control": {
+    "reference_model": "sft",
+    "overall_mean": 0.5226933858173792,
+    "overall_std": 0.016111033895160852
+  }
+}

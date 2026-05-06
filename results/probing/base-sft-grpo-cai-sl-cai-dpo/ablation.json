@@ -1,0 +1,47 @@
+{
+  "base": {
+    "peak_layer": 22,
+    "auroc_original": 0.7885714285714286,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.2885714285714286,
+    "direction_norm": 4.315952720099397,
+    "auroc_retrained": 0.7731868131868131,
+    "accuracy_retrained": 0.75
+  },
+  "sft": {
+    "peak_layer": 3,
+    "auroc_original": 0.8526570048309178,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.3526570048309178,
+    "direction_norm": 7.493021899744173,
+    "auroc_retrained": 0.8691626409017713,
+    "accuracy_retrained": 0.75
+  },
+  "grpo": {
+    "peak_layer": 33,
+    "auroc_original": 0.730890999547716,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.23089099954771597,
+    "direction_norm": 1.4928961807059458,
+    "auroc_retrained": 0.6739032112166441,
+    "accuracy_retrained": 0.63
+  },
+  "cai_sl": {
+    "peak_layer": 21,
+    "auroc_original": 0.8447378951580632,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.3447378951580632,
+    "direction_norm": 7.027386068520642,
+    "auroc_retrained": 0.8359343737494999,
+    "accuracy_retrained": 0.77
+  },
+  "cai_dpo": {
+    "peak_layer": 35,
+    "auroc_original": 0.8768382352941178,
+    "auroc_ablated": 0.5,
+    "auroc_drop": 0.37683823529411775,
+    "direction_norm": 4.1959303617598325,
+    "auroc_retrained": 0.7127757352941176,
+    "accuracy_retrained": 0.62
+  }
+}

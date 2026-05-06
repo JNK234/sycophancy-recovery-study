@@ -39,6 +39,8 @@ and detailed write-ups in `logs/`.
 | 002b | SFT v2 Rerun (post-Apr-23 wipe) | Qwen3-8B + LoRA | **0.447** (within noise of v1's 0.467) | 2026-05-05 | Rerun after `/scratch` wipe destroyed v1; v1 archived at `results/eval/post-sft.v1-original/` |
 | 011 | SL-CAI Recovery (constitution-guided distillation, SFT stage) | SFT v2 + LoRA on r_revised | **0.348** (22% recovery — weakest method tried; SL alone insufficient per Bai 2022) | 2026-05-05 | [Full write-up](011_sl_cai_recovery.md) |
 | 012 | DPO-CAI Recovery (constitution-graded preferences, contrastive stage) | SFT v2 + LoRA on (chosen=r_revised, rejected=r_init) | **0.166** — **NEW BEST** across the entire study (-38% vs original DPO's 0.268; sycophancy_gap negative -0.004) | 2026-05-06 | [Full write-up](012_dpo_cai_recovery.md) |
+| 002c | Baseline Eval (rerun, post-Apr-23 wipe) | Qwen3-8B base | 0.217 (matches earlier 0.256 within noise; baseline judgments restored for probing) | 2026-05-06 | Recovered eval artifacts at `/scratch/.../eval/baseline/` for use in Exp 013 probing |
+| 013 | CAI Probing (5 models: base/sft/grpo/cai_sl/cai_dpo) | linear logistic probe per layer | SFT→GRPO 0.651 (deepest), SFT→CAI-DPO 0.701, SFT→CAI-SL 0.738. CAI-DPO peak own-AUROC 0.877 (highest of any model). Behavioral and mechanistic rankings DIFFER. | 2026-05-06 | [Full write-up](013_cai_probing.md) |
 
 ### Wandb Run Tracking
 
