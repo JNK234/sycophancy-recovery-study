@@ -833,6 +833,20 @@ def main():
     p = subparsers.add_parser("all", help="Run full pipeline")
     p.add_argument("--test", action="store_true", help="Test mode")
 
+    # CAI: stage 1 — generate r_init from M_syc (merged SFT)
+    p = subparsers.add_parser("cai-init", help="CAI stage 1: generate r_init from M_syc")
+    p.add_argument("--test", action="store_true", help="Test mode (50 prompts)")
+    p.add_argument("--limit", type=int, default=50, help="Test mode prompt count (default 50)")
+
+    # CAI: stage 2 — critique + revise with 72B critic
+    p = subparsers.add_parser("cai-critique-revise", help="CAI stage 2: critique + revise with 72B critic")
+    p.add_argument("--test", action="store_true", help="Test mode (loads _test.jsonl)")
+    p.add_argument("--input-file", type=str, help="Input cai_init_responses JSONL (defaults to config path)")
+
+    # CAI: stage 3 — build SL-CAI + DPO-CAI training datasets
+    p = subparsers.add_parser("cai-build-datasets", help="CAI stage 3: build SL-CAI + DPO-CAI training JSONLs from filter-passed records")
+    p.add_argument("--input-file", type=str, help="Input cai_revisions JSONL (defaults to config path)")
+
     args = parser.parse_args()
     config = GenerationConfig()
 
@@ -855,6 +869,15 @@ def main():
         cmd_upload(config, getattr(args, "input_file", None))
     elif args.command == "all":
         asyncio.run(cmd_all(config, args.test))
+    elif args.command == "cai-init":
+        from src.data_generation.cai_generator import cmd_cai_init
+        cmd_cai_init(config, test_mode=args.test, test_sample_limit=args.limit)
+    elif args.command == "cai-critique-revise":
+        from src.data_generation.cai_generator import cmd_cai_critique_revise
+        cmd_cai_critique_revise(config, test_mode=args.test, input_path=getattr(args, "input_file", None))
+    elif args.command == "cai-build-datasets":
+        from src.data_generation.cai_generator import cmd_cai_build_datasets
+        cmd_cai_build_datasets(config, input_path=getattr(args, "input_file", None))
 
 
 if __name__ == "__main__":
