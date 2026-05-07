@@ -4,11 +4,15 @@
 
 We deliberately induce sycophancy in Qwen3-8B through supervised fine-tuning, creating a controlled "model organism." We then apply multiple alignment interventions and ask: do they genuinely remove sycophancy, or just teach the model to hide it? We answer this through behavioral evaluation (LLM-as-judge on 20K+ samples) and mechanistic interpretability (linear probing of residual stream activations).
 
+> 📖 **New here?** Start with the [Access Guide](docs/access-guide.md) — a one-page reference for browsing results, loading models, and reproducing experiments from any machine.
+
 ## 🤗 HuggingFace Hub Artifacts
 
 All trained models, datasets, and probing artifacts are mirrored on HF Hub for durable access and reproducibility.
 
 **Collection landing page:** https://huggingface.co/collections/JNK789/sycophancy-recovery-study-qwen3-8b-69fa474ec37865b5575a3589
+
+📖 **For a complete access guide** (workflows for browsing, loading, downloading, reproducing from any machine), see [`docs/access-guide.md`](docs/access-guide.md).
 
 ### Models
 
